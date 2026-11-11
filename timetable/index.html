@@ -209,6 +209,7 @@ dialog::backdrop{background:rgba(0,0,0,.3)}
   </form>
 </dialog>
 
+<script src="../notices-seed.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module">
 /* ================== 設定區 ================== */
@@ -231,7 +232,7 @@ const SEED = {"bases":[{"from":"2026-08-31","name":"舊版課表","tutor":["逸�
 const DEFAULT_SETTINGS = {
   termName: "115學年度上學期",
   start: "2026-08-31",
-  weeks: 20,
+  weeks: 21,
   holidays: [
     {d:"2026-09-25", n:"中秋節"},
     {d:"2026-09-28", n:"教師節"},
@@ -266,6 +267,7 @@ const S = {
   editBase: false, baseIdx: 0, origIdx: -1, origMode: "week",
   basesLoaded: false, importing: false, fsDays: {},
   day: 0, fit: true, printing: false,
+  notices: structuredClone(window.NOTICES_SEED || {events:[], links:[]}),
   month: "", ctypes: new Set(["sub","swap"]),
   exporting: false
 };
@@ -379,7 +381,7 @@ function deepMerge(t, patch){
   }
   return t;
 }
-function saveDemo(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({settings:S.settings, bases:S.bases, days:S.days})); }catch(e){} }
+function saveDemo(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({settings:S.settings, bases:S.bases, days:S.days, notices:S.notices})); }catch(e){} }
 function toFire(patch){
   const o = {};
   for (const [k,v] of Object.entries(patch)) o[k] = v===DEL ? fb.deleteField() : (v && typeof v==="object" && !Array.isArray(v)) ? toFire(v) : v;
@@ -392,6 +394,10 @@ async function writeDay(date, patch){
 async function writeSettings(obj){
   if (DEMO){ S.settings = obj; saveDemo(); render(); return; }
   await fb.setDoc(fb.doc(fb.db,COL_META,"settings"), obj);
+}
+async function writeNotices(obj){
+  if (DEMO){ S.notices = obj; saveDemo(); render(); return; }
+  await fb.setDoc(fb.doc(fb.db,COL_META,"notices"), obj);
 }
 async function writeBases(list){
   if (DEMO){ S.bases = list; saveDemo(); render(); return; }
@@ -412,7 +418,7 @@ async function initData(){
   if (DEMO){
     $("#demoBadge").hidden = false;
     let saved = null; try{ saved = JSON.parse(localStorage.getItem(LS_KEY)||"null"); }catch(e){}
-    if (saved){ S.settings = saved.settings; S.bases = saved.bases; S.days = saved.days||{}; }
+    if (saved){ S.settings = saved.settings; S.bases = saved.bases; S.days = saved.days||{}; if (saved.notices) S.notices = saved.notices; }
     else S.days = structuredClone(SEED.days);
     return;
   }
@@ -429,6 +435,7 @@ async function initData(){
   const err = e => console.error("讀取失敗", e);
   fsM.onSnapshot(fsM.doc(fb.db,COL_META,"settings"), s => { S.settings = s.exists() ? {...DEFAULT_SETTINGS, ...s.data()} : structuredClone(DEFAULT_SETTINGS); render(); }, err);
   fsM.onSnapshot(fsM.doc(fb.db,COL_META,"bases"), s => { S.basesLoaded = true; S.basesInDb = s.exists(); S.bases = s.exists() ? s.data().list : structuredClone(SEED.bases); S.days = mergedDays(); render(); maybeAutoImport(); }, err);
+  fsM.onSnapshot(fsM.doc(fb.db,COL_META,"notices"), s => { if (s.exists()){ S.notices = s.data(); if (S.view!=="notice") render(); } }, err);
   fsM.onSnapshot(fsM.collection(fb.db,COL_DAYS), qs => { const o = {}; qs.forEach(d => o[d.id] = d.data()); S.fsDays = o; S.days = mergedDays(); render(); }, err);
 }
 
@@ -808,6 +815,39 @@ function checkView(){
   }
   return h + `</div></div>`;
 }
+const NCATS = ["活動","評量","放假","截止","競賽","其他"];
+function noticeView(){
+  const n = S.notices || {events:[], links:[]};
+  const evRow = e => `<tr class="nrow"><td><input type="date" class="nd" value="${esc(e.d||"")}"></td><td><input type="date" class="ne" value="${esc(e.e||"")}"></td>
+    <td><select class="nc">${NCATS.map(c => `<option ${c===(e.c||"其他")?"selected":""}>${c}</option>`).join("")}</select></td>
+    <td><input type="text" class="nt" value="${esc(e.t||"")}" style="width:100%;min-width:220px"></td>
+    <td><input type="text" class="nl" value="${esc(e.l||"")}" placeholder="（可空白）" style="width:150px"></td>
+    <td><button class="btn warn" data-act="nrowdel" type="button">刪除</button></td></tr>`;
+  const lkRow = x => `<tr class="lrow"><td><input type="text" class="lt" value="${esc(x.t||"")}" style="min-width:140px"></td>
+    <td><input type="text" class="lu" value="${esc(x.u||"")}" style="width:100%;min-width:220px" placeholder="https://..."></td>
+    <td><input type="date" class="ld" value="${esc(x.due||"")}"></td>
+    <td><input type="text" class="ln" value="${esc(x.n||"")}" placeholder="（可空白）"></td>
+    <td><button class="btn warn" data-act="nrowdel" type="button">刪除</button></td></tr>`;
+  const evs = [...(n.events||[])].sort((a,b) => (a.d||"").localeCompare(b.d||""));
+  return `<p class="hint">這裡的內容會顯示在教務組首頁。行事會自動只列出近期的項目，過了就收起來；填報連結過了截止日會標示「已截止」。改完記得按最下面的「儲存公告」。</p>
+    <div class="card" style="margin-bottom:16px"><h3>重要行事</h3>
+    <table class="list"><thead><tr><th>開始日期</th><th>結束日期（單日可空白）</th><th>類別</th><th>內容</th><th>連結</th><th></th></tr></thead><tbody id="evBody">${evs.map(evRow).join("")}</tbody></table>
+    <button class="btn" data-act="nevadd" style="margin-top:8px">＋ 新增行事</button></div>
+    <div class="card"><h3>填報連結</h3>
+    <table class="list"><thead><tr><th>名稱</th><th>網址</th><th>截止日（可空白）</th><th>說明</th><th></th></tr></thead><tbody id="lkBody">${(n.links||[]).map(lkRow).join("")}</tbody></table>
+    <button class="btn" data-act="nlkadd" style="margin-top:8px">＋ 新增連結</button></div>
+    <div class="row" style="margin-top:14px"><button class="btn pri" data-act="nsave">儲存公告</button> <span class="hint" id="nMsg"></span></div>
+    <template id="evTpl">${evRow({c:"活動"})}</template><template id="lkTpl">${lkRow({})}</template>`;
+}
+function collectNotices(){
+  const events = [...document.querySelectorAll("#evBody .nrow")].map(r => {
+    const o = {d:r.querySelector(".nd").value, t:r.querySelector(".nt").value.trim(), c:r.querySelector(".nc").value};
+    const e = r.querySelector(".ne").value, l = r.querySelector(".nl").value.trim();
+    if (e && e > o.d) o.e = e; if (l) o.l = l; return o;
+  }).filter(x => x.d && x.t).sort((a,b) => a.d.localeCompare(b.d));
+  const links = [...document.querySelectorAll("#lkBody .lrow")].map(r => ({t:r.querySelector(".lt").value.trim(), u:r.querySelector(".lu").value.trim(), due:r.querySelector(".ld").value, n:r.querySelector(".ln").value.trim()})).filter(x => x.t && x.u);
+  return {events, links};
+}
 function settingsView(){
   const s = S.settings;
   let h = `<div class="grid2"><div class="card"><h3>學期設定</h3>
@@ -1095,8 +1135,8 @@ function readHash(){
   if (p.get("b")) S.origIdx = +p.get("b");
 }
 function render(){
-  if (!["week","class","teacher","orig","check","settings"].includes(S.view)) S.view = "week";
-  if (!S.admin && ["check","settings"].includes(S.view)) S.view = "week";
+  if (!["week","class","teacher","orig","check","notice","settings"].includes(S.view)) S.view = "week";
+  if (!S.admin && ["check","notice","settings"].includes(S.view)) S.view = "week";
   if (!S.admin) { clearSel(); S.editBase = false; }
   S.week = Math.min(Math.max(S.week,1), S.settings.weeks);
   const ts = whoList();
@@ -1104,10 +1144,10 @@ function render(){
   $("#termLbl").textContent = S.settings.termName;
   $("#loginBtn").textContent = S.admin ? "登出後台" : "後台登入";
   const tabs = [["week","全校週課表"],["class","班級課表"],["teacher","個人課表"],["orig","原課表"]];
-  if (S.admin) tabs.push(["check","核對節次"],["settings","設定"]);
-  $("#tabs").innerHTML = tabs.map(([k,n]) => `<button class="${k===S.view?"on":""} ${["check","settings"].includes(k)?"adm":""}" data-tab="${k}">${n}</button>`).join("");
+  if (S.admin) tabs.push(["check","核對節次"],["notice","公告管理"],["settings","設定"]);
+  $("#tabs").innerHTML = tabs.map(([k,n]) => `<button class="${k===S.view?"on":""} ${["check","notice","settings"].includes(k)?"adm":""}" data-tab="${k}">${n}</button>`).join("");
   const sx = document.querySelector(".scroll")?.scrollLeft || 0;
-  $("#main").innerHTML = S.view==="check" ? checkView() : S.view==="settings" ? settingsView() : timetableView();
+  $("#main").innerHTML = S.view==="check" ? checkView() : S.view==="settings" ? settingsView() : S.view==="notice" ? noticeView() : timetableView();
   const sc = document.querySelector(".scroll"); if (sc) sc.scrollLeft = sx;
   applyFit();
   renderEditor();
@@ -1158,6 +1198,10 @@ document.addEventListener("click", async e => {
         await editBlocks(date, l => { l[+i].text = text; l[+i].type = type; }); break; }
       case "delblk": { const [date,i] = S.other.key.split("|"); await editBlocks(date, l => l.splice(+i,1)); break; }
       case "resetblk": { const [date] = S.other.key.split("|"); clearSel(); await writeDay(date, {blocks:DEL}); render(); break; }
+      case "nevadd": $("#evBody").insertAdjacentHTML("beforeend", $("#evTpl").innerHTML); break;
+      case "nlkadd": $("#lkBody").insertAdjacentHTML("beforeend", $("#lkTpl").innerHTML); break;
+      case "nrowdel": btn.closest("tr").remove(); break;
+      case "nsave": { const obj = collectNotices(); await writeNotices(obj); S.notices = obj; render(); $("#nMsg").textContent = `已儲存（行事 ${obj.events.length} 項、連結 ${obj.links.length} 項）`; break; }
       case "addhol": {
         const div = document.createElement("div"); div.className = "holrow";
         div.innerHTML = `<input type="date" class="hd"><input type="text" class="hn" placeholder="假日名稱" style="width:150px"><button class="btn warn" data-act="delhol" type="button">刪除</button>`;

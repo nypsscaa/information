@@ -5,21 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>鳥嶼國小教務組</title>
 <style>
-:root{--bg:#f6f4ef;--paper:#fff;--ink:#1f2328;--muted:#5d6670;--soft:#e6e2d8;--accent:#1f5f8b}
+:root{--bg:#f6f4ef;--paper:#fff;--ink:#1f2328;--muted:#5d6670;--soft:#e6e2d8;--accent:#1f5f8b;--accent-soft:#e3edf5;
+  --c-act:#e3edf5;--c-act-ink:#1f5f8b;--c-exam:#fdecd8;--c-exam-ink:#9a4d00;--c-hol:#e8f3e6;--c-hol-ink:#2f6b2a;--c-due:#fbe3e1;--c-due-ink:#a12d22;--c-comp:#efe6f7;--c-comp-ink:#6a3a92}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif}
-.wrap{max-width:880px;margin:0 auto;padding:40px 16px}
+.wrap{max-width:1040px;margin:0 auto;padding:36px 16px 48px}
 h1{font-size:26px;margin:0 0 4px}
-.sub{color:var(--muted);margin:0 0 28px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
-a.card{display:block;background:var(--paper);border:1px solid var(--soft);border-radius:12px;padding:22px 22px 20px;color:inherit;text-decoration:none;transition:border-color .15s, box-shadow .15s}
+.sub{color:var(--muted);margin:0 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+a.card{display:block;background:var(--paper);border:1px solid var(--soft);border-radius:12px;padding:18px;color:inherit;text-decoration:none;transition:border-color .15s, box-shadow .15s}
 a.card:hover{border-color:#b9c9d6;box-shadow:0 4px 16px rgba(31,95,139,.10)}
-.icon{width:40px;height:40px;border-radius:10px;background:#e3edf5;color:var(--accent);display:grid;place-items:center;margin-bottom:14px}
-.card h2{font-size:18px;margin:0 0 6px}
-.card p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
-.go{display:inline-block;margin-top:14px;color:var(--accent);font-size:14px;font-weight:600}
-footer{margin-top:36px;color:var(--muted);font-size:13px}
+.icon{width:38px;height:38px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:12px}
+.card h2{font-size:17px;margin:0 0 4px}
+.card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.6}
+.cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin-top:22px;align-items:start}
+@media (max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--paper);border:1px solid var(--soft);border-radius:12px;padding:16px 18px}
+.panel h3{margin:0 0 10px;font-size:17px;display:flex;align-items:center;gap:8px}
+.panel h3 .more{margin-left:auto;font-size:13px;font-weight:400}
+.ev{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--soft);align-items:flex-start}
+.ev:first-of-type{border-top:none}
+.date{flex:none;width:92px}
+.date b{display:block;font-size:15px}
+.date small{color:var(--muted);font-size:12px}
+.ev .body{flex:1;min-width:0;line-height:1.5}
+.ev .body a{color:inherit}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;margin-right:6px;vertical-align:1px}
+.c-活動{background:var(--c-act);color:var(--c-act-ink)}
+.c-評量{background:var(--c-exam);color:var(--c-exam-ink)}
+.c-放假{background:var(--c-hol);color:var(--c-hol-ink)}
+.c-截止{background:var(--c-due);color:var(--c-due-ink)}
+.c-競賽{background:var(--c-comp);color:var(--c-comp-ink)}
+.c-其他{background:#eee;color:#444}
+.rel{font-size:12px;color:var(--accent);font-weight:700;margin-left:4px}
+.ev.now .rel{color:#c0392b}
+.ev.past{opacity:.45}
+button.link{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0}
+.lk{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--soft)}
+.lk:first-of-type{border-top:none}
+.lk a{color:var(--accent);font-weight:700;text-decoration:none}
+.lk a:hover{text-decoration:underline}
+.lk .meta{font-size:12.5px;color:var(--muted)}
+.lk.closed a{color:var(--muted);font-weight:400}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+footer{margin-top:32px;color:var(--muted);font-size:13px}
+@media (max-width:600px){
+  .wrap{padding-top:24px}
+  .grid{grid-template-columns:1fr 1fr;gap:10px}
+  a.card{padding:12px}
+  .icon{width:32px;height:32px;margin-bottom:8px}
+  .card h2{font-size:15px;margin:0}
+  .card p{display:none}
+  .date{width:84px}
+}
 </style>
+<script src="notices-seed.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -27,25 +67,104 @@ footer{margin-top:36px;color:var(--muted);font-size:13px}
   <p class="sub">澎湖縣白沙鄉鳥嶼國民小學</p>
   <div class="grid">
     <a class="card" href="timetable/">
-      <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 4v17M13 9v12"/></svg></div>
-      <h2>課表查詢</h2>
-      <p>全校週課表、班級課表、個人課表；可下載圖片、Word、PDF。每週代調課即時更新。</p>
-      <span class="go">進入 →</span>
+      <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 4v17M13 9v12"/></svg></div>
+      <h2>課表查詢</h2><p>週課表、班級、個人課表與原課表，可下載。</p>
     </a>
-    <a class="card" href="textbook/">
-      <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M19 19v2H6"/></svg></div>
-      <h2>教科書選用系統</h2>
-      <p>各年級領域教科書審查紀錄填寫與分配表。</p>
-      <span class="go">進入 →</span>
+    <a class="card" href="exam/">
+      <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6l1 2h3v16H5V5h3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h2>定期評量</h2><p>審題分配表、期中與期末監考表。</p>
     </a>
     <a class="card" href="curriculum/">
-      <div class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg></div>
-      <h2>校訂課程手冊</h2>
-      <p>家鄉趣、數創客、閱創客、寰嶼遊、英創客五本校訂課程手冊，線上翻頁閱讀。</p>
-      <span class="go">進入 →</span>
+      <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg></div>
+      <h2>校訂課程手冊</h2><p>五本校訂課程手冊，線上翻頁閱讀。</p>
     </a>
+    <a class="card" href="textbook/">
+      <div class="icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M19 19v2H6"/></svg></div>
+      <h2>教科書選用系統</h2><p>教科書審查紀錄填寫與分配表。</p>
+    </a>
+  </div>
+
+  <div class="cols">
+    <section class="panel">
+      <h3>近期重要行事 <span class="more"><button class="link" id="toggleAll">看整學期</button></span></h3>
+      <div id="events"><div class="empty">載入中…</div></div>
+    </section>
+    <section class="panel">
+      <h3>填報專區</h3>
+      <div id="links"><div class="empty">載入中…</div></div>
+    </section>
   </div>
   <footer>教務組維護</footer>
 </div>
+
+<script type="module">
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAEkxli5TVmOsRbiEskRhz_-sHYOXYNVPE",
+  authDomain: "textbook-cf439.firebaseapp.com",
+  projectId: "textbook-cf439",
+  storageBucket: "textbook-cf439.firebasestorage.app",
+  messagingSenderId: "386837296808",
+  appId: "1:386837296808:web:a7cdcf7687c0ff4342349d"
+};
+const DAYN = ["日","一","二","三","四","五","六"];
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const ymd = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+const pdate = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const lab = s => { const d = pdate(s); return `${d.getMonth()+1}/${d.getDate()}（${DAYN[d.getDay()]}）`; };
+const today = ymd(new Date());
+const days = (a,b) => Math.round((pdate(b)-pdate(a))/864e5);
+// 連結：站內相對路徑以入口頁為基準（資料裡寫 ../exam/ 是給子頁用的）
+const href = l => l.startsWith("../") ? l.slice(3) : l;
+
+let data = window.NOTICES_SEED, showAll = false;
+
+function renderEvents(){
+  const list = [...data.events].sort((a,b) => a.d.localeCompare(b.d));
+  const upcoming = list.filter(e => (e.e||e.d) >= today);
+  const shown = showAll ? list : upcoming.slice(0, 7);
+  const box = document.getElementById("events");
+  if (!shown.length){ box.innerHTML = `<div class="empty">近期沒有登錄的行事。</div>`; return; }
+  box.innerHTML = shown.map(e => {
+    const end = e.e || e.d, past = end < today, now = e.d <= today && today <= end;
+    let rel = "";
+    if (now) rel = e.e ? "進行中" : "今天";
+    else if (!past){ const n = days(today, e.d); rel = n===1 ? "明天" : n<=14 ? `${n} 天後` : ""; }
+    const dateTxt = e.e ? `${lab(e.d)}<small>～${lab(e.e)}</small>` : lab(e.d);
+    const c = ["活動","評量","放假","截止","競賽"].includes(e.c) ? e.c : "其他";
+    const t = e.l ? `<a href="${esc(href(e.l))}">${esc(e.t)}</a>` : esc(e.t);
+    return `<div class="ev ${past?"past":""} ${now?"now":""}"><div class="date"><b>${dateTxt}</b></div><div class="body"><span class="tag c-${c}">${esc(e.c||"其他")}</span>${t}${rel?`<span class="rel">${rel}</span>`:""}</div></div>`;
+  }).join("");
+  if (!showAll && upcoming.length > shown.length) box.innerHTML += `<div class="empty">還有 ${upcoming.length-shown.length} 項，按「看整學期」查看。</div>`;
+}
+function renderLinks(){
+  const list = [...(data.links||[])].sort((a,b) => {
+    const ca = a.due && a.due < today, cb = b.due && b.due < today;
+    return (ca - cb) || (a.due||"9").localeCompare(b.due||"9");
+  });
+  const box = document.getElementById("links");
+  if (!list.length){ box.innerHTML = `<div class="empty">目前沒有需要填報的項目。</div>`; return; }
+  box.innerHTML = list.map(x => {
+    const closed = x.due && x.due < today;
+    const meta = [x.due ? (closed ? "已截止" : `截止 ${lab(x.due)}${days(today,x.due)<=3?"　⚠ 即將截止":""}`) : "", x.n||""].filter(Boolean).join("　");
+    return `<div class="lk ${closed?"closed":""}"><div><a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.t)} ↗</a>${meta?`<div class="meta">${esc(meta)}</div>`:""}</div></div>`;
+  }).join("");
+}
+function render(){ renderEvents(); renderLinks(); document.getElementById("toggleAll").textContent = showAll ? "只看近期" : "看整學期"; }
+document.getElementById("toggleAll").addEventListener("click", () => { showAll = !showAll; render(); });
+render();
+
+// 讀取後台「公告管理」儲存的最新資料（讀不到就用預設資料）
+try{
+  const V = "11.6.1";
+  const [appM, fsM] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`)
+  ]);
+  const db = fsM.getFirestore(appM.initializeApp(FIREBASE_CONFIG));
+  const snap = await fsM.getDoc(fsM.doc(db, "tt_meta", "notices"));
+  if (snap.exists()){ data = snap.data(); render(); }
+} catch(e){ console.warn("讀取公告失敗，使用預設資料", e); }
+</script>
 </body>
 </html>

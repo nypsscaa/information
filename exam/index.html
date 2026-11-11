@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>定期評量</title>
+<style>
+:root{--bg:#f6f4ef;--paper:#fff;--ink:#1f2328;--muted:#5d6670;--soft:#e6e2d8;--accent:#1f5f8b;--exam:#ececec;--mine:#ffe58a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.top a{color:var(--accent);text-decoration:none;font-size:14px}
+h1{font-size:22px;margin:0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.tabs button{border:1px solid #c9c4b8;background:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;font:inherit;color:var(--ink)}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+select{font:inherit;border:1px solid #c9c4b8;border-radius:8px;padding:6px 8px;background:#fff}
+.grow{flex:1}
+.panel{background:var(--paper);border:1px solid var(--soft);border-radius:12px;padding:16px;margin-bottom:16px;overflow-x:auto}
+.panel h2{font-size:17px;margin:0 0 4px;text-align:center}
+.panel h3{font-size:16px;margin:16px 0 6px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px;table-layout:fixed}
+th,td{border:1px solid #8a8f96;padding:5px 4px;text-align:center;vertical-align:middle}
+thead th,th.rh{background:#e9e6df}
+th.rh{white-space:nowrap;width:110px}
+td.exam{background:var(--exam)}
+td .s{font-weight:700}
+td .t{font-size:13px}
+td.na{background:repeating-linear-gradient(135deg,#fafafa 0 6px,#f0f0f0 6px 12px)}
+tr.rev th,tr.rev td{border-bottom-width:2px}
+.mine{background:var(--mine)!important;font-weight:700;outline:2px solid #d4a400;outline-offset:-2px}
+.note{font-size:13.5px;color:#333;line-height:1.7;margin-top:10px}
+.my{background:#fffbea;border:1px solid #f0d77a;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:14.5px;line-height:1.7}
+.my b{display:block;margin-bottom:2px}
+.my ul{margin:0;padding-left:20px}
+.legend{font-size:13px;color:var(--muted);text-align:center;margin-bottom:8px}
+.sw{display:inline-block;width:12px;height:12px;border:1px solid #999;vertical-align:-1px;margin:0 3px 0 8px}
+@media print{ .top,.bar,.my{display:none} body{background:#fff} .panel{border:none;padding:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../">← 教務組</a><h1>115 學年度第一學期　定期評量</h1></div>
+  <div class="bar">
+    <div class="tabs" id="tabs"></div>
+    <span class="grow"></span>
+    <label>我是 <select id="who"><option value="">（選擇老師）</option></select></label>
+  </div>
+  <div id="my"></div>
+  <div id="main"></div>
+</div>
+<script>
+const GRADES = ["一年級","二年級","三年級","四年級","五年級","六年級"];
+const TIMES = ["08:40～09:20","09:30～10:10","10:30～11:10","11:20～12:00"];
+/* ===== 115-1 審題分配表 ===== 每科：命題（各年級）、審題（各年級），null = 不考 */
+const REVIEW = [
+  {s:"國語", w:["逸蓁","柔棉","珮慈","士頡","貴香","思寧"], r:["柔棉","逸蓁","士頡","珮慈","思寧","貴香"]},
+  {s:"數學", w:["逸蓁","柔棉","珮慈","士頡","貴香","思寧"], r:["柔棉","逸蓁","士頡","珮慈","思寧","貴香"]},
+  {s:"自然", w:[null,null,"嘉瑋","志宏","勝隆","志宏"], r:[null,null,"志宏","嘉瑋","志宏","勝隆"]},
+  {s:"社會", w:[null,null,"庭安","志宏","勝隆","勝隆"], r:[null,null,"勝隆","勝隆","庭安","志宏"]},
+  {s:"英語", w:[null,null,"逸蓁","士頡","一蓁","一蓁"], r:[null,null,"一蓁","一蓁","逸蓁","士頡"]},
+  {s:"健康", w:["志宏","柔棉","嘉瑋","瑞謙","勝隆","瑞謙"], r:["柔棉","志宏","瑞謙","嘉瑋","瑞謙","勝隆"], note:"僅期末"}
+];
+const REVIEW_NOTE = "審題截止：期中 10/28（三）、期末 12/30（三）。<br>請審題後連同審題單及考卷樣張繳至教務組，教務組確認後再印製考卷（學生數＋1）。";
+/* ===== 監考表 ===== 每格 [科目, 老師, 是否為考試] */
+const X = (s,t) => [s,t,true], N = (s,t) => [s,t,false];
+const EXAMS = [
+  {key:"mid", name:"期中定期評量", days:[
+    {date:"11/4（三）", rows:[
+      [X("國語","逸蓁"),X("國語","柔棉"),X("國語","珮慈"),X("國語","士頡"),X("國語","貴香"),X("國語","思寧")],
+      [N("數學","逸蓁"),N("體育","志宏"),X("自然","珮慈"),X("自然","士頡"),X("自然","貴香"),X("自然","思寧")],
+      [N("生B","勝隆"),N("國語","柔棉"),X("英語","庭安"),X("英語","士頡"),X("英語","嘉瑋"),X("英語","志宏")],
+      [N("閩語","庭安"),N("國語","柔棉"),N("數學","珮慈"),N("E創","勝隆"),N("英創","一蓁"),N("自然","志宏")]]},
+    {date:"11/5（四）", rows:[
+      [X("數學","逸蓁"),X("數學","庭安"),X("數學","珮慈"),X("數學","柔棉"),X("數學","貴香"),X("數學","思寧")],
+      [N("數學","逸蓁"),N("生A","志宏"),X("社會","珮慈"),X("社會","士頡"),X("社會","柔棉"),X("社會","思寧")],
+      [N("生B","勝隆"),N("生A","志宏"),N("視藝","柔棉"),N("國語","士頡"),N("國語","貴香"),N("英語","一蓁")],
+      [N("生A","一蓁"),N("生B","勝隆"),N("表藝","珮慈"),N("社會","志宏"),N("數學","貴香"),N("數學","思寧")]]}
+  ], notes:["考試結束後正常上課。"]},
+  {key:"final", name:"期末定期評量", days:[
+    {date:"1/6（三）", rows:[
+      [X("國語","逸蓁"),X("國語","柔棉"),X("國語","珮慈"),X("國語","士頡"),X("國語","貴香"),X("國語","思寧")],
+      [N("數學","逸蓁"),N("體育","志宏"),X("自然","珮慈"),X("自然","士頡"),X("自然","貴香"),X("自然","思寧")],
+      [N("生B","勝隆"),N("國語","柔棉"),X("英語","庭安"),X("英語","士頡"),X("英語","嘉瑋"),X("英語","志宏")],
+      [N("閩語","庭安"),N("國語","柔棉"),N("數學","珮慈"),N("E創","勝隆"),N("英創","一蓁"),N("自然","志宏")]]},
+    {date:"1/7（四）", rows:[
+      [X("數學","逸蓁"),X("數學","庭安"),X("數學","珮慈"),X("數學","柔棉"),X("數學","貴香"),X("數學","思寧")],
+      [X("健康","逸蓁"),X("健康","志宏"),X("社會","珮慈"),X("社會","士頡"),X("社會","柔棉"),X("社會","思寧")],
+      [N("生B","勝隆"),N("生A","志宏"),X("健康","柔棉"),X("健康","士頡"),X("健康","貴香"),X("健康","一蓁")],
+      [N("生A","一蓁"),N("生B","勝隆"),N("表藝","珮慈"),N("社會","志宏"),N("數學","貴香"),N("數學","思寧")]]}
+  ], notes:["健康僅期末測驗。","考試結束後正常上課。"]}
+];
+
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TABS = [["review","審題分配表"],["mid","期中監考表"],["final","期末監考表"]];
+let tab = (location.hash.slice(1) || (new Date() > new Date(2026,10,6) ? "final" : "mid"));
+if (!TABS.some(t => t[0]===tab)) tab = "review";
+let who = ""; try{ who = localStorage.getItem("tt-who") || ""; }catch(_){}
+
+const allNames = [...new Set([
+  ...REVIEW.flatMap(r => [...r.w, ...r.r]),
+  ...EXAMS.flatMap(e => e.days.flatMap(d => d.rows.flat().map(c => c[1])))
+].filter(Boolean))];
+
+function reviewHTML(){
+  let h = `<div class="panel"><h2>115 學年度第一學期　審題分配表</h2><table><thead><tr><th class="rh">科目</th>${GRADES.map(g => `<th>${g}</th>`).join("")}</tr></thead><tbody>`;
+  REVIEW.forEach(r => {
+    const row = (label, arr, cls) => `<tr class="${cls}"><th class="rh">${label}</th>${arr.map(n => n ? `<td class="${n===who?"mine":""}">${esc(n)}</td>` : `<td class="na"></td>`).join("")}</tr>`;
+    h += row(`${r.s}${r.note?`<br><small>（${r.note}）</small>`:""}`, r.w, "") + row("審題", r.r, "rev");
+  });
+  return h + `</tbody></table><div class="note">${REVIEW_NOTE}</div></div>`;
+}
+function examHTML(e){
+  let h = `<div class="panel"><h2>115 學年度第一學期　${e.name}監考表</h2><div class="legend"><span class="sw" style="background:var(--exam)"></span>灰底為考試節次（下方為監考老師）；白底為正常上課</div>`;
+  e.days.forEach(d => {
+    h += `<h3>${d.date}</h3><table><thead><tr><th class="rh">時間</th>${GRADES.map(g => `<th>${g}</th>`).join("")}</tr></thead><tbody>`;
+    d.rows.forEach((row,i) => {
+      h += `<tr><th class="rh">${TIMES[i]}</th>${row.map(([s,t,x]) => `<td class="${x?"exam":""} ${x&&t===who?"mine":""}"><div class="s">${x?esc(s):"正常上課"}</div><div class="t">${x?esc(t):`${esc(s)}／${esc(t)}`}</div></td>`).join("")}</tr>`;
+    });
+    h += `</tbody></table>`;
+  });
+  return h + `<div class="note">${e.notes.map((n,i) => `註${i+1}：${esc(n)}`).join("<br>")}</div></div>`;
+}
+function myHTML(){
+  if (!who) return "";
+  const items = [];
+  const w = REVIEW.flatMap(r => r.w.map((n,i) => n===who ? `${GRADES[i]}${r.s}` : null)).filter(Boolean);
+  const rv = REVIEW.flatMap(r => r.r.map((n,i) => n===who ? `${GRADES[i]}${r.s}` : null)).filter(Boolean);
+  if (w.length) items.push(`命題：${w.join("、")}`);
+  if (rv.length) items.push(`審題：${rv.join("、")}`);
+  EXAMS.forEach(e => {
+    const m = e.days.flatMap(d => d.rows.flatMap((row,i) => row.map((c,g) => c[2] && c[1]===who ? `${d.date} ${TIMES[i].slice(0,5)} ${GRADES[g]}${c[0]}` : null))).filter(Boolean);
+    if (m.length) items.push(`${e.name}監考：${m.join("、")}`);
+  });
+  return `<div class="my"><b>${esc(who)}老師的工作</b>${items.length ? `<ul>${items.map(x => `<li>${x}</li>`).join("")}</ul>` : "本學期沒有排到命題、審題或監考。"}</div>`;
+}
+function render(){
+  document.getElementById("tabs").innerHTML = TABS.map(([k,n]) => `<button class="${k===tab?"on":""}" data-tab="${k}">${n}</button>`).join("");
+  const sel = document.getElementById("who");
+  sel.innerHTML = `<option value="">（選擇老師）</option>` + allNames.map(n => `<option ${n===who?"selected":""}>${esc(n)}</option>`).join("");
+  document.getElementById("my").innerHTML = myHTML();
+  document.getElementById("main").innerHTML = tab==="review" ? reviewHTML() : examHTML(EXAMS.find(e => e.key===tab));
+  history.replaceState(null, "", "#"+tab);
+}
+document.getElementById("tabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b){ tab = b.dataset.tab; render(); } });
+document.getElementById("who").addEventListener("change", e => { who = e.target.value; try{ if (who) localStorage.setItem("tt-who", who); }catch(_){} render(); });
+render();
+</script>
+</body>
+</html>
