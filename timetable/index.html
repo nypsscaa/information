@@ -202,7 +202,8 @@ const S = {
   admin: false,
   view: "week", week: 1, cls: 0, who: "",
   sel: [], other: null,        // other = {kind:'text'|'blk'|'tut', key}
-  editBase: false, baseIdx: 0,
+  editBase: false, baseIdx: 0, origIdx: -1, origMode: "week",
+  basesLoaded: false, importing: false, fsDays: {},
   month: "", ctypes: new Set(["sub","swap"]),
   exporting: false
 };
@@ -234,7 +235,7 @@ const termShort = () => S.settings.termName.replace("學年度","").replace("學
 /* ---------- data access ---------- */
 function baseFor(date){
   const L = S.bases;
-  if (!date) return L[Math.min(S.baseIdx, L.length-1)];
+  if (!date){ const i = S.view==="orig" ? (S.origIdx<0 ? L.length-1 : S.origIdx) : S.baseIdx; return L[Math.min(i, L.length-1)]; }
   let b = L[0]; for (const x of L) if (x.from <= date) b = x; return b;
 }
 const baseCell = (date,d,c,p) => baseFor(date).cells[`${d}-${c}-${p}`] || null;
@@ -318,11 +319,16 @@ async function writeBases(list){
   if (DEMO){ S.bases = list; saveDemo(); render(); return; }
   await fb.setDoc(fb.doc(fb.db,COL_META,"bases"), {list});
 }
-async function importSeed(){
-  if (!confirm("要把 W1–W11 既有週課表與兩個版本的基本課表寫入雲端嗎？\n（同一天若已有資料會被覆蓋）")) return;
-  await writeBases(SEED.bases);
-  await Promise.all(Object.entries(SEED.days).map(([date,doc]) => fb.setDoc(fb.doc(fb.db,COL_DAYS,date), doc)));
-  alert("匯入完成");
+// 雲端還沒有資料時：先顯示內建資料；教務組第一次登入後台時自動存進雲端
+function mergedDays(){ return S.basesInDb ? S.fsDays : {...structuredClone(SEED.days), ...S.fsDays}; }
+async function maybeAutoImport(){
+  if (DEMO || !S.admin || !S.basesLoaded || S.basesInDb || S.importing) return;
+  S.importing = true;
+  try{
+    await Promise.all(Object.entries(SEED.days).filter(([date]) => !S.fsDays[date]).map(([date,doc]) => fb.setDoc(fb.doc(fb.db,COL_DAYS,date), doc)));
+    await writeBases(SEED.bases);   // 最後寫入，代表匯入完成
+  } catch(e){ console.error("自動匯入失敗", e); }
+  finally { S.importing = false; }
 }
 async function initData(){
   if (DEMO){
@@ -341,11 +347,11 @@ async function initData(){
   const app = appM.initializeApp(FIREBASE_CONFIG);
   fb = { db: fsM.getFirestore(app), auth: auM.getAuth(app), doc: fsM.doc, setDoc: fsM.setDoc, deleteField: fsM.deleteField,
          signIn: auM.signInWithEmailAndPassword, signOut: auM.signOut };
-  auM.onAuthStateChanged(fb.auth, u => { S.admin = !!u && u.email===ADMIN_EMAIL; render(); });
+  auM.onAuthStateChanged(fb.auth, u => { S.admin = !!u && u.email===ADMIN_EMAIL; render(); maybeAutoImport(); });
   const err = e => console.error("讀取失敗", e);
   fsM.onSnapshot(fsM.doc(fb.db,COL_META,"settings"), s => { S.settings = s.exists() ? {...DEFAULT_SETTINGS, ...s.data()} : structuredClone(DEFAULT_SETTINGS); render(); }, err);
-  fsM.onSnapshot(fsM.doc(fb.db,COL_META,"bases"), s => { S.basesInDb = s.exists(); S.bases = s.exists() ? s.data().list : structuredClone(SEED.bases); render(); }, err);
-  fsM.onSnapshot(fsM.collection(fb.db,COL_DAYS), qs => { const o = {}; qs.forEach(d => o[d.id] = d.data()); S.days = o; render(); }, err);
+  fsM.onSnapshot(fsM.doc(fb.db,COL_META,"bases"), s => { S.basesLoaded = true; S.basesInDb = s.exists(); S.bases = s.exists() ? s.data().list : structuredClone(SEED.bases); S.days = mergedDays(); render(); maybeAutoImport(); }, err);
+  fsM.onSnapshot(fsM.collection(fb.db,COL_DAYS), qs => { const o = {}; qs.forEach(d => o[d.id] = d.data()); S.fsDays = o; S.days = mergedDays(); render(); }, err);
 }
 
 /* ---------- table pieces ---------- */
@@ -356,7 +362,7 @@ function rowHead(r){
   return `<th class="rh">${PNUM[r]}<br><small>${PER[r]}</small></th>`;
 }
 function dayLabel(dates,d){ return dates ? `${mmdd(dates[d])}(${DAYN[d]})` : `(${DAYN[d]})`; }
-const editable = () => S.admin && !S.exporting;
+const editable = () => S.admin && !S.exporting && S.view!=="orig";
 const isSel = (kind,key) => !S.exporting && S.other?.kind===kind && S.other.key===key;
 function tutorTd(date,c,dstart){
   const x = tutorAt(date,c); const key = `${date}|${c}`;
@@ -435,7 +441,7 @@ function gridTable(dates, cols){
 
 /* ---------- 個人課表 ---------- */
 function teacherTable(dates, who){
-  const models = [0,1,2,3,4].map(d => dayModel(dates[d], d));
+  const models = [0,1,2,3,4].map(d => dayModel(dates?dates[d]:null, d));
   const st = {total:0, inn:0, out:0};
   let h = `<table class="tt tt-teacher"><thead><tr><th class="rh">節次</th>`;
   for (let d=0;d<5;d++) h += `<th class="dstart">${dayLabel(dates,d)}</th>`;
@@ -446,7 +452,7 @@ function teacherTable(dates, who){
     let skipDays = 0;
     for (let d=0; d<5; d++){
       if (skipDays>0){ skipDays--; continue; }
-      const M = models[d]; const date = dates[d]; const row = M.grid[ri];
+      const M = models[d]; const date = dates ? dates[d] : null; const row = M.grid[ri];
       if (full(row[0]) && row.every(x => x===row[0])){
         const it = row[0];
         if (it.r0!==ri) continue;
@@ -486,7 +492,15 @@ function teacherTable(dates, who){
 function legend(){
   return `<div class="legend"><span class="sw" style="background:var(--event)"></span>粉紅色為學校行事、<span class="sw" style="background:var(--swap)"></span>藍色為教師協調代調課、<span class="sw" style="background:var(--sub)"></span>黃色為公假排代或自費代課</div>`;
 }
+function origSheetHTML(){
+  const B = baseFor(null);
+  const head = `${esc(S.settings.termName)}　${SCHOOL}　${esc(B.name)}（${md(B.from)} 起）`;
+  if (S.origMode==="class") return `<h2>${head}　${CN[S.cls]}年級課表（導師：${esc(B.tutor[S.cls])}）</h2>${gridTable(null,[S.cls])}`;
+  if (S.origMode==="teacher"){ const {html, st} = teacherTable(null, S.who); return `<h2>${head}　${esc(S.who)}老師課表</h2><div class="stats">每週 ${st.total} 節</div>${html}`; }
+  return `<h2>${head}　班級總日課表</h2>${gridTable(null,[0,1,2,3,4,5])}`;
+}
 function sheetHTML(){
+  if (S.view==="orig") return origSheetHTML();
   const baseMode = S.editBase && S.view==="week";
   const dates = baseMode ? null : weekDates(S.week);
   const range = dates ? `${mmdd(dates[0])}-${mmdd(dates[4])}` : "";
@@ -512,12 +526,20 @@ function weekOptions(){
 function timetableView(){
   const baseMode = S.editBase && S.view==="week";
   let bar = `<div class="bar">`;
+  if (S.view==="orig"){
+    const cur = S.origIdx<0 ? S.bases.length-1 : S.origIdx;
+    bar += `<select id="origVer">${S.bases.map((x,i)=>{ const nx = S.bases[i+1]; return `<option value="${i}" ${i===cur?"selected":""}>${esc(x.name)}（${md(x.from)}${nx?`–${md(addDays(nx.from,-3))}`:" 起"}）</option>`; }).join("")}</select>
+      <select id="origMode"><option value="week" ${S.origMode==="week"?"selected":""}>全校</option><option value="class" ${S.origMode==="class"?"selected":""}>班級</option><option value="teacher" ${S.origMode==="teacher"?"selected":""}>個人</option></select>`;
+    if (S.origMode==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
+    if (S.origMode==="teacher") bar += `<select id="whoSel">${allTeachers().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+    bar += `<span class="grow"></span><button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn" data-act="print">列印／存 PDF</button></div>`;
+    return bar + `<div class="scroll"><div id="sheet" class="${S.origMode==="week"?"":"fit"}">${sheetHTML()}</div></div>`;
+  }
   if (!baseMode) bar += `<button class="btn" data-act="prev" aria-label="上一週">◀</button><select id="weekSel">${weekOptions()}</select><button class="btn" data-act="next" aria-label="下一週">▶</button><button class="btn" data-act="today">本週</button>`;
   if (S.view==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
   if (S.view==="teacher") bar += `<select id="whoSel">${allTeachers().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
   bar += `<span class="grow"></span><button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn" data-act="print">列印／存 PDF</button></div>`;
   let pre = "";
-  if (S.admin && !DEMO && !S.basesInDb) pre += `<div class="banner">雲端還沒有課表資料，目前顯示的是內建資料。請到「設定」按「匯入既有週課表」。</div>`;
   if (baseMode) pre += `<div class="banner">正在編輯「${esc(baseFor(null).name)}」（自 ${md(baseFor(null).from)} 起適用）：修改會套用到這段期間的每一週。完成後請到「設定」關閉。</div>`;
   else if (S.admin && S.view!=="teacher") pre += `<div class="hint noprint" style="margin-bottom:8px">點格子編輯（可連續點多格，同一天的多格可合併成活動格）；點導師、晨間、大下課、活動格也能修改。紅框＝同一位老師同節排在兩班。</div>`;
   return bar + pre + `<div class="scroll"><div id="sheet" class="${S.view==="week"?"":"fit"}">${sheetHTML()}</div></div>`;
@@ -590,7 +612,7 @@ function settingsView(){
   if (S.editBase) h += `<p><button class="btn warn" data-act="endbase">結束編輯基本課表</button></p>`;
   h += `<h3 style="margin-top:16px">資料</h3>
     <p class="hint">下載目前所有資料（設定、基本課表、每天的異動）成一個檔案，建議每月存一次。</p>
-    <div class="row"><button class="btn" data-act="backup">下載備份</button>${DEMO?"":`<button class="btn" data-act="seed">匯入既有週課表（W1–W11）</button>`}</div></div></div>`;
+    <div class="row"><button class="btn" data-act="backup">下載備份</button></div></div></div>`;
   return h;
 }
 
@@ -741,6 +763,7 @@ async function mkBlock(){
 /* ---------- export ---------- */
 function fileBase(){
   const w = `W${S.week}`;
+  if (S.view==="orig"){ const n = baseFor(null).name; return S.origMode==="class" ? `${termShort()}_${n}_${CN[S.cls]}年級` : S.origMode==="teacher" ? `${termShort()}_${n}_${S.who}` : `${termShort()}_${n}_全校`; }
   if (S.view==="week") return S.editBase ? `${termShort()}_${baseFor(null).name}` : `${termShort()}_${w}_週課表`;
   if (S.view==="class") return `${termShort()}_${w}_${CN[S.cls]}年級課表`;
   return `${termShort()}_${w}_${S.who}課表`;
@@ -776,7 +799,7 @@ function rgbHex(c){
 async function exportDocx(){
   if (!window.docx) await loadScript("https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js");
   const D = window.docx;
-  const week = S.view==="week";
+  const week = S.view==="week" || (S.view==="orig" && S.origMode==="week");
   const k = week ? 0.82 : 0.9;
   const hp = px => Math.max(10, Math.round(parseFloat(px)*0.75*k*2));
   const holder = offscreen(week ? "" : "fit");
@@ -844,8 +867,9 @@ function exportBackup(){
 /* ---------- render & routing ---------- */
 function writeHash(){
   const p = new URLSearchParams({v:S.view, w:S.week});
-  if (S.view==="class") p.set("c", S.cls);
-  if (S.view==="teacher") p.set("t", S.who);
+  if (S.view==="orig"){ p.delete("w"); p.set("m", S.origMode); if (S.origIdx>=0) p.set("b", S.origIdx); }
+  if (S.view==="class" || (S.view==="orig" && S.origMode==="class")) p.set("c", S.cls);
+  if (S.view==="teacher" || (S.view==="orig" && S.origMode==="teacher")) p.set("t", S.who);
   history.replaceState(null, "", location.pathname + location.search + "#" + p.toString());
 }
 function readHash(){
@@ -854,16 +878,18 @@ function readHash(){
   if (p.get("w")) S.week = +p.get("w") || S.week;
   if (p.get("c")) S.cls = +p.get("c") || 0;
   if (p.get("t")) S.who = p.get("t");
+  if (p.get("m")) S.origMode = p.get("m");
+  if (p.get("b")) S.origIdx = +p.get("b");
 }
 function render(){
-  if (!["week","class","teacher","check","settings"].includes(S.view)) S.view = "week";
+  if (!["week","class","teacher","orig","check","settings"].includes(S.view)) S.view = "week";
   if (!S.admin && ["check","settings"].includes(S.view)) S.view = "week";
   if (!S.admin) { clearSel(); S.editBase = false; }
   S.week = Math.min(Math.max(S.week,1), S.settings.weeks);
   const ts = allTeachers(); if (!ts.includes(S.who)) S.who = ts[0];
   $("#termLbl").textContent = S.settings.termName;
   $("#loginBtn").textContent = S.admin ? "登出後台" : "後台登入";
-  const tabs = [["week","全校週課表"],["class","班級課表"],["teacher","個人課表"]];
+  const tabs = [["week","全校週課表"],["class","班級課表"],["teacher","個人課表"],["orig","原課表"]];
   if (S.admin) tabs.push(["check","核對節次"],["settings","設定"]);
   $("#tabs").innerHTML = tabs.map(([k,n]) => `<button class="${k===S.view?"on":""} ${["check","settings"].includes(k)?"adm":""}" data-tab="${k}">${n}</button>`).join("");
   const sx = document.querySelector(".scroll")?.scrollLeft || 0;
@@ -902,7 +928,6 @@ document.addEventListener("click", async e => {
       case "print": window.print(); break;
       case "csv": exportCSV(); break;
       case "backup": exportBackup(); break;
-      case "seed": await importSeed(); break;
       case "apply": await applyEdit(); break;
       case "swap": await swapEdit(); break;
       case "reset": await resetEdit(); break;
@@ -945,6 +970,8 @@ document.addEventListener("change", e => {
   else if (e.target.id==="clsSel"){ S.cls = +e.target.value; render(); }
   else if (e.target.id==="whoSel"){ S.who = e.target.value; try{ localStorage.setItem("tt-who", S.who); }catch(_){} render(); }
   else if (e.target.id==="monthSel"){ S.month = e.target.value; render(); }
+  else if (e.target.id==="origVer"){ S.origIdx = +e.target.value; render(); }
+  else if (e.target.id==="origMode"){ S.origMode = e.target.value; render(); }
   else if (e.target.dataset.ctype){ const k = e.target.dataset.ctype; e.target.checked ? S.ctypes.add(k) : S.ctypes.delete(k); render(); }
 });
 $("#loginBtn").addEventListener("click", async () => {
