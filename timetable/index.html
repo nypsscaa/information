@@ -340,6 +340,22 @@ function allTeachers(){
   Object.values(S.days).forEach(day => { Object.values(day.cells||{}).forEach(v => v.t && set.add(v.t)); Object.values(day.tut||{}).forEach(v => v.t && set.add(v.t)); });
   return [...set];
 }
+/* 某一週（或某個課表版本）實際出現的老師；已離職老師只會出現在他在職的週次 */
+function teachersOf(dates){
+  const set = new Set();
+  if (!dates){ const B = baseFor(null); B.tutor.forEach(t => set.add(t)); Object.values(B.cells).forEach(v => v.t && set.add(v.t)); }
+  else dates.forEach((date,d) => {
+    if (holidayName(date)) return;
+    for (let c=0;c<6;c++) set.add(tutorAt(date,c).t);
+    const M = dayModel(date,d);
+    for (let p=1;p<=7;p++) for (let c=0;c<6;c++) if (M.grid[RI[p]][c]?.kind==="cell"){ const x = cellAt(date,d,c,p); if (x?.t) set.add(x.t); }
+  });
+  set.delete(""); set.delete(undefined);
+  const order = allTeachers();
+  const out = order.filter(t => set.has(t)).concat([...set].filter(t => !order.includes(t)));
+  return out.length ? out : order;
+}
+const whoList = () => S.view==="orig" ? teachersOf(null) : teachersOf(weekDates(S.week));
 function conflicts(dates, models){
   const out = new Set();
   dates.forEach((date,d) => {
@@ -720,7 +736,7 @@ function timetableView(){
       <select id="origMode"><option value="week" ${S.origMode==="week"?"selected":""}>全校</option><option value="class" ${S.origMode==="class"?"selected":""}>班級</option><option value="teacher" ${S.origMode==="teacher"?"selected":""}>個人</option></select>`;
   } else if (!baseMode) bar += `<button class="btn" data-act="prev" aria-label="上一週">◀</button><select id="weekSel">${weekOptions()}</select><button class="btn" data-act="next" aria-label="下一週">▶</button><button class="btn" data-act="today">本週</button>`;
   if (m==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
-  if (m==="teacher") bar += `<select id="whoSel">${allTeachers().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  if (m==="teacher") bar += `<select id="whoSel">${whoList().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
   bar += `<span class="grow"></span>`;
   if (!mobile && m==="week") bar += `<label class="fitchk noprint"><input type="checkbox" id="fitToggle" ${S.fit?"checked":""}> 縮放至視窗寬度</label>`;
   bar += `<button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn hide-m" data-act="print">列印／存 PDF</button></div>`;
@@ -836,7 +852,7 @@ function renderEditor(){
   const show = S.admin && (S.sel.length || S.other) && ["week","class"].includes(S.view);
   if (!show){ ed.hidden = true; return; }
   ed.hidden = false;
-  const tlist = `<datalist id="tlist">${allTeachers().map(t => `<option value="${esc(t)}">`).join("")}</datalist>`;
+  const tlist = `<datalist id="tlist">${[...new Set([...teachersOf(weekDates(S.week)), ...teachersOf(null)])].map(t => `<option value="${esc(t)}">`).join("")}</datalist>`;
   const o = S.other;
   if (o?.kind==="text"){
     const a = o.key.split("|"); const isBase = a[0]==="B";
@@ -1083,7 +1099,8 @@ function render(){
   if (!S.admin && ["check","settings"].includes(S.view)) S.view = "week";
   if (!S.admin) { clearSel(); S.editBase = false; }
   S.week = Math.min(Math.max(S.week,1), S.settings.weeks);
-  const ts = allTeachers(); if (!ts.includes(S.who)) S.who = ts[0];
+  const ts = whoList();
+  if (!ts.includes(S.who)){ let saved = ""; try{ saved = localStorage.getItem("tt-who")||""; }catch(_){} S.who = ts.includes(saved) ? saved : ts[0]; }
   $("#termLbl").textContent = S.settings.termName;
   $("#loginBtn").textContent = S.admin ? "登出後台" : "後台登入";
   const tabs = [["week","全校週課表"],["class","班級課表"],["teacher","個人課表"],["orig","原課表"]];
