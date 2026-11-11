@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>澎湖縣鳥嶼國小 校訂課程手冊</title>
+    <!-- 引入 Tailwind CSS 作為快速排版與樣式設計 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 Google 字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- 引入 PDF.js (負責讀取 PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- 引入 PageFlip (負責 3D 翻頁動畫) -->
+    <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .book-card { transition: all 0.3s ease; }
+        .book-card:hover { transform: translateY(-10px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 翻頁書本的書脊陰影效果，增加真實感 */
+        .my-page {
+            background-color: white;
+            border: solid 1px #e5e7eb;
+            overflow: hidden;
+            box-sizing: border-box; 
+        }
+        .my-page.--left {
+            border-right: 0;
+            box-shadow: inset -7px 0 30px -7px rgba(0, 0, 0, 0.15);
+        }
+        .my-page.--right {
+            border-left: 0;
+            box-shadow: inset 7px 0 30px -7px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- 頁首 Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-40 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-school text-blue-600 text-3xl"></i>
+                <div>
+                    <h1 class="font-bold text-xl md:text-2xl text-gray-900">澎湖縣鳥嶼國小</h1>
+                    <p class="text-sm text-gray-500">澎海望潮子 鳥嶼愛思客</p>
+                </div>
+            </div>
+            <a href="../" class="text-blue-600 hover:text-blue-800 transition font-medium flex items-center gap-1" title="回教務組首頁">
+                <i class="fa-solid fa-arrow-left"></i> 教務組首頁
+            </a>
+        </div>
+    </header>
+
+    <!-- 橫幅 Hero Section -->
+    <section class="bg-blue-600 text-white py-16 md:py-24">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl md:text-5xl font-black mb-6 tracking-wide">校訂課程手冊</h2>
+            <p class="text-lg md:text-xl max-w-3xl mx-auto text-blue-100 leading-relaxed">
+                點擊下方各科目課程手冊，開始線上閱讀備課用書。
+            </p>
+        </div>
+    </section>
+
+    <!-- 主要內容區塊：五本書籍 Grid -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center">
+            
+            <!-- 區塊 1：01家鄉趣 -->
+            <div class="book-card bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col">
+                <div class="h-64 bg-gray-100 border-b border-gray-200 relative overflow-hidden">
+                    <img src="./01家鄉趣封面封底.png" alt="01家鄉趣封面封底" class="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-500">
+                </div>
+                <div class="p-6 flex-grow flex flex-col">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-3">家鄉趣</h3>
+                    <p class="text-gray-600 text-sm mb-6 flex-grow">透過實地踏查與在地環境的互動，引領學生深入探索家鄉的自然與人文脈絡，從中建立對生長土地的情感連結、認同感與在地關懷意識。</p>
+                    <button onclick="openBook('01家鄉趣校訂課程手冊.pdf', '家鄉趣')" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open"></i> 翻閱手冊
+                    </button>
+                </div>
+            </div>
+
+            <!-- 區塊 2：02數創客 -->
+            <div class="book-card bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col">
+                <div class="h-64 bg-gray-100 border-b border-gray-200 relative overflow-hidden">
+                    <img src="./02數創客封面封底.png" alt="02數創客封面封底" class="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-500">
+                </div>
+                <div class="p-6 flex-grow flex flex-col">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-3">數創客</h3>
+                    <p class="text-gray-600 text-sm mb-6 flex-grow">將數理邏輯與日常生活情境緊密結合，培養學生具備運算思維、資料分析與邏輯推理的素養，並能靈活運用數學工具來解決真實世界的問題。</p>
+                    <button onclick="openBook('02數創客校訂課程手冊.pdf', '數創客')" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open"></i> 翻閱手冊
+                    </button>
+                </div>
+            </div>
+
+            <!-- 區塊 3：03閱創客 -->
+            <div class="book-card bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col">
+                <div class="h-64 bg-gray-100 border-b border-gray-200 relative overflow-hidden">
+                    <img src="./03閱創客封面封底.png" alt="03閱創客封面封底" class="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-500">
+                </div>
+                <div class="p-6 flex-grow flex flex-col">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-3">閱創客</h3>
+                    <p class="text-gray-600 text-sm mb-6 flex-grow">藉由深度閱讀與文本探討，培養學生理解、詮釋、反思與評鑑的進階閱讀素養，並激發創意思考與批判性觀點，奠定終身學習與自主閱讀的基礎。</p>
+                    <button onclick="openBook('03閱創客校訂課程手冊.pdf', '閱創客')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open"></i> 翻閱手冊
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 區塊 4：04寰嶼遊 -->
+            <div class="book-card bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col">
+                <div class="h-64 bg-gray-100 border-b border-gray-200 relative overflow-hidden">
+                    <img src="./04寰嶼遊封面封底.png" alt="04寰嶼遊封面封底" class="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-500">
+                </div>
+                <div class="p-6 flex-grow flex flex-col">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-3">寰嶼遊</h3>
+                    <p class="text-gray-600 text-sm mb-6 flex-grow">從世界觀點出發，引導學生透過多元的跨文化探索與實作交流，培養具備國際視野、能理解並尊重多元文化的全球公民素養，同時深化團隊合作與溝通表達能力。</p>
+                    <button onclick="openBook('04寰嶼遊校訂課程手冊.pdf', '寰嶼遊')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open"></i> 翻閱手冊
+                    </button>
+                </div>
+            </div>
+
+            <!-- 區塊 5：05英創客 -->
+            <div class="book-card bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col">
+                <div class="h-64 bg-gray-100 border-b border-gray-200 relative overflow-hidden">
+                    <img src="./05英創客封面封底.png" alt="05英創客封面封底" class="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-500">
+                </div>
+                <div class="p-6 flex-grow flex flex-col">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-3">英創客</h3>
+                    <p class="text-gray-600 text-sm mb-6 flex-grow">結合語言學習與生命經驗，引導學生進行自我探索與特質梳理，並透過創意的表達形式，展現獨特的個人故事，提升語言應用與溝通能力。</p>
+                    <button onclick="openBook('05英創客校訂課程手冊.pdf', '英創客')" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open"></i> 翻閱手冊
+                    </button>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <!-- 頁尾 Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-8 text-center mt-auto">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>&copy; 2026 澎湖縣鳥嶼國小. All rights reserved.</p>
+            <p class="text-sm mt-2">校訂課程手冊</p>
+        </div>
+    </footer>
+
+    <!-- 電子書閱讀器 Modal (彈出視窗) -->
+    <div id="bookModal" class="fixed inset-0 z-50 hidden bg-gray-900 bg-opacity-95 flex flex-col transition-opacity duration-300 opacity-0">
+        <!-- Modal 頂部控制列 -->
+        <div class="h-16 bg-gray-900 text-white flex justify-between items-center px-4 md:px-6 shadow-md border-b border-gray-700 shrink-0 relative z-50">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-book text-blue-400"></i>
+                <h2 id="modalTitle" class="font-bold text-lg md:text-xl tracking-wide">載入中...</h2>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4">
+                <!-- 模式切換按鈕 -->
+                <button id="toggleModeBtn" onclick="toggleViewMode()" class="text-blue-300 hover:text-white transition text-xs md:text-sm border border-gray-600 hover:border-blue-400 rounded px-2 md:px-3 py-1 flex items-center gap-1">
+                    <i class="fa-solid fa-scroll"></i> <span class="hidden sm:inline">切換一般捲動</span>
+                </button>
+                <a id="downloadBtn" href="#" target="_blank" class="text-gray-300 hover:text-white transition flex items-center gap-2 px-2" title="下載/新開視窗">
+                    <i class="fa-solid fa-download"></i>
+                </a>
+                <button onclick="closeBook()" class="text-gray-300 hover:text-red-400 transition px-2" title="關閉">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- PDF 顯示區域 -->
+        <div class="flex-grow w-full relative overflow-hidden flex flex-col bg-gray-800" style="min-height: 0;">
+            
+            <!-- 載入動畫 -->
+            <div id="loadingIndicator" class="absolute inset-0 flex flex-col items-center justify-center text-white z-20 bg-gray-800 transition-opacity duration-300">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 mb-4"></i>
+                <p id="loadingText" class="text-lg">正在載入 3D 翻頁特效...</p>
+                <p class="text-xs text-gray-400 mt-2 text-center px-4">若遲遲未顯示，請點擊上方切換為「一般捲動」模式</p>
+            </div>
+            
+            <!-- 放大縮小控制列 (Zoom Controls) -->
+            <div id="zoomControls" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-40 flex items-center gap-2 bg-gray-900 bg-opacity-90 border border-gray-600 px-4 py-2 rounded-full shadow-2xl hidden">
+                <button onclick="zoomOut()" class="text-white hover:text-blue-400 w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 transition" title="縮小">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <span id="zoomPercentage" class="text-white text-sm font-bold w-14 text-center">100%</span>
+                <button onclick="zoomIn()" class="text-white hover:text-blue-400 w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 transition" title="放大">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+                <div class="w-px h-6 bg-gray-600 mx-1"></div>
+                <button onclick="resetZoom()" class="text-white hover:text-blue-400 px-3 py-1 text-sm rounded-full bg-gray-700 hover:bg-gray-600 transition">
+                    還原
+                </button>
+            </div>
+
+            <!-- 3D 翻書區域 (支援捲軸) -->
+            <!-- 這裡我們讓 viewport 可以 overflow-auto，這樣放大時就會出現捲軸 -->
+            <div id="flipbook-viewport" class="w-full h-full overflow-auto relative" style="display: none;">
+                <!-- Wrapper 用來負責書本居中與放大時的空間擴充 -->
+                <div id="flipbook-wrapper" class="w-full min-h-full flex justify-center items-center transition-all duration-300 relative">
+                    <!-- 書本本體 (設定 origin-top 讓放大時向下長，方便捲動) -->
+                    <div id="flipbook" class="transition-transform duration-300 origin-top shadow-2xl z-10 relative"></div>
+                </div>
+            </div>
+
+            <!-- 一般捲動區域 -->
+            <iframe id="pdfViewer" src="" class="w-full h-full relative z-10 border-0 bg-white" style="display: none;" title="PDF Viewer"></iframe>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // 設定 PDF.js Worker 路徑
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        const modal = document.getElementById('bookModal');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const modalTitle = document.getElementById('modalTitle');
+        const body = document.body;
+
+        let currentMode = 'flip'; // 預設使用 3D 翻頁
+        let currentPdfPath = '';
+        let pageFlipInstance = null;
+        let currentPdfDoc = null;
+        
+        // 放大縮小相關變數
+        let currentZoom = 1;
+        const ZOOM_STEP = 0.25; // 每次縮放 25%
+        const MAX_ZOOM = 3.0;   // 最大放大 300%
+        const MIN_ZOOM = 0.5;   // 最小縮小 50%
+
+        // 打開電子書
+        function openBook(pdfFileName, title) {
+            modalTitle.textContent = title;
+            currentPdfPath = './' + pdfFileName; 
+            downloadBtn.href = currentPdfPath;
+
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            body.style.overflow = 'hidden';
+
+            resetZoom(); // 打開時預設 100%
+            loadCurrentMode();
+        }
+
+        // 切換觀看模式
+        function toggleViewMode() {
+            currentMode = currentMode === 'flip' ? 'scroll' : 'flip';
+            const btn = document.getElementById('toggleModeBtn');
+            if(currentMode === 'flip') {
+                btn.innerHTML = '<i class="fa-solid fa-scroll"></i> <span class="hidden sm:inline">切換一般捲動</span>';
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-book-open"></i> <span class="hidden sm:inline">切換3D翻頁</span>';
+            }
+            resetZoom();
+            loadCurrentMode();
+        }
+
+        // 根據模式載入畫面
+        function loadCurrentMode() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const flipbookViewport = document.getElementById('flipbook-viewport');
+            const pdfViewer = document.getElementById('pdfViewer');
+            const zoomControls = document.getElementById('zoomControls');
+            
+            // 重置載入畫面
+            loadingIndicator.style.display = 'flex';
+            loadingIndicator.innerHTML = `
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 mb-4"></i>
+                <p class="text-lg">正在載入 3D 翻頁特效...</p>
+                <p class="text-xs text-gray-400 mt-2 text-center px-4">處理高畫質圖層中，請稍候...<br>若遲遲未顯示，請點擊右上角切換為「一般捲動」</p>
+            `;
+
+            if (currentMode === 'flip') {
+                flipbookViewport.style.display = 'block';
+                pdfViewer.style.display = 'none';
+                zoomControls.classList.remove('hidden'); // 顯示縮放面板
+                pdfViewer.src = '';
+                initFlipBook();
+            } else {
+                flipbookViewport.style.display = 'none';
+                loadingIndicator.style.display = 'none';
+                pdfViewer.style.display = 'block';
+                zoomControls.classList.add('hidden'); // 隱藏縮放面板
+                pdfViewer.src = currentPdfPath + '#toolbar=0';
+            }
+        }
+
+        // --- 放大縮小功能區塊 ---
+        function zoomIn() {
+            if (currentZoom < MAX_ZOOM) {
+                currentZoom += ZOOM_STEP;
+                applyZoom();
+            }
+        }
+
+        function zoomOut() {
+            if (currentZoom > MIN_ZOOM) {
+                currentZoom -= ZOOM_STEP;
+                applyZoom();
+            }
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const flipbook = document.getElementById('flipbook');
+            const wrapper = document.getElementById('flipbook-wrapper');
+            const pctText = document.getElementById('zoomPercentage');
+            
+            if(!flipbook) return;
+
+            // 更新顯示百分比
+            pctText.textContent = Math.round(currentZoom * 100) + '%';
+            
+            // 執行 CSS 縮放
+            flipbook.style.transform = `scale(${currentZoom})`;
+
+            if (currentZoom > 1) {
+                // 當放大時，為了讓捲軸正常運作，我們需要把外圍容器的排版方式改變
+                wrapper.classList.remove('items-center');
+                wrapper.classList.add('items-start');
+                wrapper.style.paddingTop = '60px'; // 讓頂部預留空間方便看
+                wrapper.style.paddingBottom = '100px'; 
+                
+                // 動態取得縮放後的真實尺寸，撐開外圍 wrapper 以觸發原生捲軸
+                const rect = flipbook.getBoundingClientRect();
+                wrapper.style.minWidth = (rect.width + 120) + 'px'; // 左右預留邊距
+                wrapper.style.minHeight = (rect.height + 160) + 'px'; 
+            } else {
+                // 恢復為預設的置中顯示
+                wrapper.classList.remove('items-start');
+                wrapper.classList.add('items-center');
+                wrapper.style.paddingTop = '0';
+                wrapper.style.paddingBottom = '0';
+                wrapper.style.minWidth = '100%';
+                wrapper.style.minHeight = '100%';
+            }
+        }
+        // -----------------------
+
+        // 初始化 3D 翻頁書
+        async function initFlipBook() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const flipbookViewport = document.getElementById('flipbook-viewport');
+            const flipbookEl = document.getElementById('flipbook');
+            
+            // 清理舊的實例
+            if(pageFlipInstance) {
+                pageFlipInstance.destroy();
+                pageFlipInstance = null;
+            }
+            flipbookEl.innerHTML = ''; 
+
+            try {
+                // 讀取 PDF (加入中文字體庫支援)
+                const loadingTask = pdfjsLib.getDocument({
+                    url: encodeURI(currentPdfPath),
+                    cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/',
+                    cMapPacked: true
+                });
+
+                currentPdfDoc = await loadingTask.promise;
+                const numPages = currentPdfDoc.numPages;
+
+                // 取得第一頁比例
+                const firstPage = await currentPdfDoc.getPage(1);
+                const baseViewport = firstPage.getViewport({ scale: 1.0 });
+                const pdfWidth = baseViewport.width;
+                const pdfHeight = baseViewport.height;
+
+                // 【關鍵修正：終極防裁切】
+                // 取得外層容器的空間，預留「超大」的安全距離，保證絕對不會撞到標題列
+                const containerRect = flipbookViewport.parentElement.getBoundingClientRect();
+                // 扣除 120px 的高度作為上下安全區 (原本是 80px)
+                const safeHeight = Math.max(containerRect.height - 120, 300); 
+                const safeWidth = Math.max(containerRect.width - 60, 300); 
+
+                // 動態產生對應數量的空白頁面 div
+                for(let i = 1; i <= numPages; i++) {
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'my-page bg-white flex items-center justify-center relative';
+                    pageDiv.dataset.page = i;
+                    pageDiv.innerHTML = '<div class="absolute text-gray-300"><i class="fa-solid fa-circle-notch fa-spin text-3xl"></i></div><canvas class="w-full h-full object-contain relative z-10"></canvas>';
+                    flipbookEl.appendChild(pageDiv);
+                }
+
+                // 初始化 PageFlip 引擎
+                pageFlipInstance = new St.PageFlip(flipbookEl, {
+                    width: pdfWidth,     
+                    height: pdfHeight,   
+                    size: "stretch",     
+                    minWidth: 200,       
+                    maxWidth: safeWidth,   // 嚴格限制最大寬度
+                    minHeight: 200,
+                    maxHeight: safeHeight, // 嚴格限制最大高度 (防止撞到上方 Header)
+                    showCover: true,
+                    mobileScrollSupport: false, 
+                    maxShadowOpacity: 0.3
+                });
+
+                pageFlipInstance.loadFromHTML(document.querySelectorAll('.my-page'));
+
+                const renderedPages = new Set();
+                async function renderPage(pageNum) {
+                    if (pageNum < 1 || pageNum > numPages || renderedPages.has(pageNum)) return;
+                    renderedPages.add(pageNum);
+                    
+                    try {
+                        const page = await currentPdfDoc.getPage(pageNum);
+                        // 提高畫布解析度至 2.5 倍，確保放大觀看時依然超級清晰！
+                        const viewport = page.getViewport({ scale: 2.5 }); 
+                        
+                        const pageEl = document.querySelector(`.my-page[data-page="${pageNum}"]`);
+                        if(!pageEl) return;
+                        
+                        const canvas = pageEl.querySelector('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        
+                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                        
+                        const spinner = pageEl.querySelector('div');
+                        if(spinner) spinner.style.display = 'none';
+                    } catch(e) {
+                        console.error('Error rendering page ' + pageNum, e);
+                        renderedPages.delete(pageNum); 
+                    }
+                }
+
+                // 監聽翻頁事件
+                pageFlipInstance.on('flip', (e) => {
+                    const current = e.data + 1; 
+                    renderPage(current);
+                    renderPage(current + 1);
+                    renderPage(current + 2);
+                    if (current > 1) renderPage(current - 1);
+                    if (current > 2) renderPage(current - 2);
+                });
+
+                // 一開始先載入封面與前兩頁
+                await renderPage(1);
+                await renderPage(2);
+                await renderPage(3);
+
+                loadingIndicator.style.display = 'none'; // 隱藏載入畫面
+
+            } catch (err) {
+                console.error("PDF/Flipbook Error:", err);
+                loadingIndicator.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation text-4xl text-red-500 mb-4"></i>
+                    <p class="text-lg font-bold text-red-200">3D 翻頁模式載入失敗</p>
+                    <div class="mt-4 p-3 bg-gray-900 rounded border border-red-800 max-w-md w-full text-left">
+                        <p class="text-xs text-gray-400 mb-1">技術錯誤代碼 (請拍照給工程師)：</p>
+                        <p class="text-sm text-red-400 font-mono break-all">${err.message || JSON.stringify(err)}</p>
+                    </div>
+                    <p class="text-sm text-gray-300 mt-4 text-center">可能是檔案名稱不符、檔案太大或瀏覽器不支援。<br>請點擊下方按鈕切換觀看模式。</p>
+                    <button onclick="toggleViewMode()" class="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold shadow-lg">切換為一般捲動模式</button>
+                `;
+            }
+        }
+
+        // 關閉電子書
+        function closeBook() {
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('pdfViewer').src = ''; 
+                body.style.overflow = 'auto'; 
+                
+                if(pageFlipInstance) {
+                    pageFlipInstance.destroy();
+                    pageFlipInstance = null;
+                }
+                document.getElementById('flipbook').innerHTML = '';
+            }, 300); 
+        }
+    </script>
+</body>
+</html>

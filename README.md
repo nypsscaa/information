@@ -5,6 +5,7 @@
 | `/` | 教務組入口 |
 | `/timetable/` | 課表查詢（全校／班級／個人週課表，含後台） |
 | `/textbook/` | 教科書選用系統 |
+| `/curriculum/` | 校訂課程手冊（PDF 線上翻頁） |
 
 資料庫：Firebase 專案 `textbook-cf439`（Firestore）。
 課表資料在 `tt_days`、`tt_meta`；教科書資料在 `artifacts/...`，互不影響。
