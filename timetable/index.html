@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>鳥嶼國小課表</title>
+<style>
+:root{
+  --bg:#f6f4ef; --paper:#fff; --ink:#1f2328; --muted:#5d6670; --line:#8a8f96; --soft:#e6e2d8;
+  --accent:#1f5f8b; --accent-ink:#fff; --danger:#c0392b;
+  --event:#f9cfe0; --swap:#bfddf5; --sub:#fff27a; --hol:#ececec; --block:#f1efe9;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;font-size:15px}
+button,input,select{font:inherit}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:var(--paper);border-bottom:1px solid var(--soft)}
+header.top .home{color:var(--accent);text-decoration:none;font-size:14px}
+header.top h1{font-size:18px;margin:0;font-weight:700}
+header.top .term{color:var(--muted);font-size:14px}
+header.top .sp{flex:1}
+.demo-badge{background:#fff3cd;color:#7a5b00;border:1px solid #e8d38a;border-radius:6px;padding:2px 8px;font-size:12px}
+nav.tabs{display:flex;gap:4px;padding:8px 16px 0;flex-wrap:wrap}
+nav.tabs button{border:1px solid var(--soft);border-bottom:none;background:#ebe7de;padding:8px 14px;border-radius:8px 8px 0 0;cursor:pointer;color:var(--ink)}
+nav.tabs button.on{background:var(--paper);font-weight:700}
+nav.tabs button.adm{color:var(--accent)}
+main{background:var(--paper);margin:0 16px 16px;border:1px solid var(--soft);border-radius:0 8px 8px 8px;padding:12px 16px 20px;min-height:60vh}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.bar .grow{flex:1}
+.btn{border:1px solid #c9c4b8;background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;color:var(--ink)}
+.btn:hover{background:#f3f1ec}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.warn{color:var(--danger);border-color:#e3b3ad}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+select,input[type=text],input[type=date],input[type=number],input[type=password],input[type=month]{border:1px solid #c9c4b8;border-radius:6px;padding:6px 8px;background:#fff;color:var(--ink)}
+.banner{background:#fdecea;border:1px solid #f1b8b0;color:#7d2418;padding:8px 12px;border-radius:6px;margin-bottom:10px}
+.hint{color:var(--muted);font-size:13px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--soft);border-radius:6px}
+#sheet{display:inline-block;min-width:100%;background:#fff;padding:12px;width:max-content}
+#sheet h2{font-size:17px;margin:0 0 4px;text-align:center;font-weight:700}
+.legend{font-size:13px;text-align:center;margin-bottom:8px;color:#333}
+.sw{display:inline-block;width:14px;height:14px;border:1px solid #999;vertical-align:-2px;margin:0 3px 0 8px}
+.stats{text-align:center;font-size:13px;margin:-2px 0 8px;color:#333}
+table.tt{border-collapse:collapse;font-size:13px;background:#fff}
+.tt th,.tt td{border:1px solid var(--line);padding:3px 4px;text-align:center;vertical-align:middle}
+.tt thead th{background:#d9d9d9;font-weight:700}
+.tt th.rh{background:#d9d9d9;white-space:nowrap;min-width:78px}
+.tt th.rh small{font-weight:400;font-size:11px}
+.tt .dstart{border-left:2.5px solid #333}
+.tt-week td.c{min-width:40px}
+.tt-class td.c,.tt-teacher td.c{min-width:110px;height:44px}
+#sheet.fit{width:100%;display:block}
+#sheet.fit table{width:100%}
+.tt .s{font-weight:700}
+.tt .t{font-size:12px;color:#333}
+.tt td.tutor{font-weight:700}
+.tt td.dt{font-size:12px}
+.tt td.lunch{background:#fafafa;letter-spacing:4px}
+.tt td.block{background:#fff;font-weight:700;line-height:1.5}
+.tt td.hol{background:var(--hol);font-weight:700;color:#444}
+.tt td.hol .holn{font-size:16px;margin:6px 0;color:#222}
+.tt td.none{background:#fbfbfb}
+.ty-event{background:var(--event)!important}
+.ty-swap{background:var(--swap)!important}
+.ty-sub{background:var(--sub)!important}
+.tt td.edit{cursor:pointer}
+.tt td.edit:hover{outline:2px solid #7fb3d5;outline-offset:-2px}
+.tt td.sel{outline:3px solid #e67e22!important;outline-offset:-3px}
+.tt td.conf{box-shadow:inset 0 0 0 2px var(--danger)}
+.tt .it{line-height:1.35}
+.tt .it .cl{font-size:12px;color:#333}
+.tt .lost{font-size:11px;color:#777;text-decoration:line-through;margin-top:2px}
+.tt .note{font-size:10px;color:#555}
+/* editor */
+#editor{position:fixed;right:16px;bottom:16px;width:340px;max-width:calc(100vw - 32px);max-height:75vh;overflow:auto;background:#fff;border:1px solid #c9c4b8;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:12px 14px;z-index:20}
+#editor h3{margin:0 0 6px;font-size:15px}
+#editor .sel-list{font-size:12px;color:#333;max-height:110px;overflow:auto;background:#f7f6f2;border-radius:6px;padding:6px 8px;margin-bottom:8px}
+#editor label{display:block;font-size:13px;margin:6px 0 2px;color:var(--muted)}
+#editor input[type=text],#editor textarea{width:100%;font:inherit;border:1px solid #c9c4b8;border-radius:6px;padding:6px 8px}
+#editor .types{display:flex;flex-direction:column;gap:4px;font-size:13px}
+#editor .types label{display:flex;align-items:center;gap:6px;color:var(--ink);margin:0}
+#editor .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+#editor .warn{color:var(--danger);font-size:12px;margin-top:6px}
+/* check */
+table.list{border-collapse:collapse;font-size:14px;width:100%}
+table.list th,table.list td{border-bottom:1px solid var(--soft);padding:6px 8px;text-align:left;white-space:nowrap}
+table.list th{background:#f3f1ec;position:sticky;top:0}
+table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
+.chip{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;border:1px solid #bbb}
+.grid2{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.card{border:1px solid var(--soft);border-radius:8px;padding:12px;overflow-x:auto}
+.card h3{margin:0 0 8px;font-size:15px}
+.holrow{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+dialog{border:1px solid #c9c4b8;border-radius:10px;padding:18px;max-width:340px;width:calc(100vw - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.3)}
+.err{color:var(--danger);font-size:13px;min-height:18px}
+@media (max-width:600px){
+  main{margin:0 8px 8px;padding:10px}
+  nav.tabs{padding:8px 8px 0}
+  header.top{padding:10px 12px}
+  #sheet{padding:8px}
+  #sheet h2{font-size:15px}
+  #sheet.fit .tt{font-size:12px}
+  #sheet.fit th.rh{min-width:44px}
+  #sheet.fit .tt th,#sheet.fit .tt td{padding:2px 2px}
+  #sheet.fit .tt td.dt{font-size:11px}
+  #sheet.fit .tt th.rh small{font-size:9px}
+  .tt-class td.c,.tt-teacher td.c{min-width:0;height:40px}
+  .tt .t,.tt .it .cl{font-size:11px}
+}
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  body{background:#fff}
+  header.top,nav.tabs,.bar,#editor,.noprint,.banner{display:none!important}
+  main{border:none;margin:0;padding:0}
+  .scroll{border:none;overflow:visible}
+  #sheet{padding:0}
+  .tt td.sel{outline:none!important}
+  .tt td.conf{box-shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a href="../" class="home noprint" title="回教務組首頁">← 教務組</a>
+  <h1>鳥嶼國小課表</h1>
+  <span class="term" id="termLbl"></span>
+  <span class="demo-badge" id="demoBadge" hidden>示範模式（資料只存在這台電腦）</span>
+  <span class="sp"></span>
+  <button class="btn" id="loginBtn">後台登入</button>
+</header>
+<nav class="tabs" id="tabs"></nav>
+<main id="main"></main>
+
+<aside id="editor" hidden></aside>
+
+<dialog id="loginDlg">
+  <form method="dialog" id="loginForm">
+    <h3 style="margin:0 0 10px">後台登入</h3>
+    <input type="password" id="pw" placeholder="請輸入後台密碼" style="width:100%" autocomplete="current-password">
+    <div class="err" id="loginErr"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" value="cancel" type="button" id="loginCancel">取消</button>
+      <button class="btn pri" type="submit">登入</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script type="module">
+/* ================== 設定區 ================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAEkxli5TVmOsRbiEskRhz_-sHYOXYNVPE",
+  authDomain: "textbook-cf439.firebaseapp.com",
+  projectId: "textbook-cf439",
+  storageBucket: "textbook-cf439.firebasestorage.app",
+  messagingSenderId: "386837296808",
+  appId: "1:386837296808:web:a7cdcf7687c0ff4342349d"
+};
+// 教務組後台帳號：在 Firebase Authentication 建立這個 email 的使用者，密碼就是後台密碼
+const ADMIN_EMAIL = "jiaowu@textbook-cf439.web.app";
+const SCHOOL = "澎湖縣白沙鄉鳥嶼國民小學";
+const COL_DAYS = "tt_days", COL_META = "tt_meta";   // 與教科書系統的資料分開存放
+/* ========================================== */
+
+const DEMO = !FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith("請") || new URLSearchParams(location.search).has("demo");
+const SEED = {"bases":[{"from":"2026-08-31","name":"舊版課表","tutor":["逸蓁","柔棉","家奇","士頡","貴香","思寧"],"am":["7:30-8:40直排輪社團 8:00教師會議","共讀+導師時間","學生朝會","共讀+導師時間","共讀+書籍借閱"],"brk":["運動活動","跳繩時間","運動時間","跳繩活動","資源回收"],"cells":{"0-0-1":{"s":"國語","t":"逸蓁"},"0-1-1":{"s":"國語","t":"柔棉"},"0-2-1":{"s":"國語","t":"家奇"},"0-3-1":{"s":"國語","t":"士頡"},"0-4-1":{"s":"國語","t":"貴香"},"0-5-1":{"s":"國語","t":"思寧"},"0-0-2":{"s":"國語","t":"逸蓁"},"0-1-2":{"s":"生A","t":"志宏"},"0-2-2":{"s":"數學","t":"家奇"},"0-3-2":{"s":"數學","t":"士頡"},"0-4-2":{"s":"數學","t":"貴香"},"0-5-2":{"s":"體育","t":"瑞謙"},"0-0-3":{"s":"體育","t":"嘉瑋"},"0-1-3":{"s":"體育","t":"志宏"},"0-2-3":{"s":"閩語","t":"校長"},"0-3-3":{"s":"音樂","t":"思寧"},"0-4-3":{"s":"英語","t":"一蓁"},"0-5-3":{"s":"健康","t":"瑞謙"},"0-0-4":{"s":"數學","t":"逸蓁"},"0-1-4":{"s":"數學","t":"柔棉"},"0-2-4":{"s":"社會","t":"庭安"},"0-3-4":{"s":"閩語","t":"校長"},"0-4-4":{"s":"健康","t":"勝隆"},"0-5-4":{"s":"數學","t":"思寧"},"0-2-5":{"s":"自然","t":"嘉瑋"},"0-3-5":{"s":"閱創","t":"士頡"},"0-4-5":{"s":"社會","t":"勝隆"},"0-5-5":{"s":"E創","t":"一蓁"},"0-2-6":{"s":"體育","t":"嘉瑋"},"0-3-6":{"s":"社會","t":"志宏"},"0-4-6":{"s":"自然","t":"勝隆"},"0-5-6":{"s":"英語","t":"一蓁"},"0-2-7":{"s":"英創","t":"逸蓁"},"0-3-7":{"s":"社會","t":"志宏"},"0-4-7":{"s":"體育","t":"嘉瑋"},"0-5-7":{"s":"社會","t":"勝隆"},"1-0-1":{"s":"國語","t":"逸蓁"},"1-1-1":{"s":"國語","t":"柔棉"},"1-2-1":{"s":"國語","t":"家奇"},"1-3-1":{"s":"國語","t":"士頡"},"1-4-1":{"s":"國語","t":"貴香"},"1-5-1":{"s":"國語","t":"思寧"},"1-0-2":{"s":"閱創","t":"逸蓁"},"1-1-2":{"s":"數學","t":"柔棉"},"1-2-2":{"s":"社會","t":"庭安"},"1-3-2":{"s":"數學","t":"士頡"},"1-4-2":{"s":"數學","t":"貴香"},"1-5-2":{"s":"數學","t":"思寧"},"1-0-3":{"s":"健康","t":"志宏"},"1-1-3":{"s":"生B","t":"勝隆"},"1-2-3":{"s":"數學","t":"家奇"},"1-4-3":{"s":"英語","t":"一蓁"},"1-5-3":{"s":"閩語","t":"校長"},"1-0-4":{"s":"數創","t":"逸蓁"},"1-1-4":{"s":"生B","t":"勝隆"},"1-2-4":{"s":"音樂","t":"家奇"},"1-4-4":{"s":"閩語","t":"校長"},"1-5-4":{"s":"寰嶼","t":"庭安"},"1-0-5":{"s":"英創","t":"逸蓁"},"1-1-5":{"s":"健康","t":"柔棉"},"1-2-5":{"s":"健康","t":"嘉瑋"},"1-3-5":{"s":"自然","t":"志宏"},"1-4-5":{"s":"社會","t":"勝隆"},"1-5-5":{"s":"音樂","t":"思寧"},"1-0-6":{"s":"生A","t":"一蓁"},"1-1-6":{"s":"閱創","t":"柔棉"},"1-2-6":{"s":"家鄉","t":"家奇"},"1-3-6":{"s":"家鄉","t":"志宏"},"1-4-6":{"s":"家鄉","t":"貴香"},"1-5-6":{"s":"家鄉","t":"勝隆"},"1-0-7":{"s":"生A","t":"一蓁"},"1-1-7":{"s":"數創","t":"柔棉"},"1-2-7":{"s":"綜海","t":"家奇"},"1-3-7":{"s":"綜海","t":"志宏"},"1-4-7":{"s":"綜海","t":"貴香"},"1-5-7":{"s":"綜海","t":"勝隆"},"2-0-1":{"s":"國語","t":"逸蓁"},"2-1-1":{"s":"數學","t":"柔棉"},"2-2-1":{"s":"國語","t":"家奇"},"2-3-1":{"s":"國語","t":"士頡"},"2-4-1":{"s":"國語","t":"貴香"},"2-5-1":{"s":"國語","t":"思寧"},"2-0-2":{"s":"數學","t":"逸蓁"},"2-1-2":{"s":"體育","t":"志宏"},"2-2-2":{"s":"閱創","t":"家奇"},"2-3-2":{"s":"數學","t":"士頡"},"2-4-2":{"s":"數學","t":"貴香"},"2-5-2":{"s":"數學","t":"思寧"},"2-0-3":{"s":"生B","t":"勝隆"},"2-1-3":{"s":"國語","t":"柔棉"},"2-2-3":{"s":"社會","t":"庭安"},"2-3-3":{"s":"英創","t":"士頡"},"2-5-3":{"s":"自然","t":"志宏"},"2-0-4":{"s":"閩語","t":"庭安"},"2-1-4":{"s":"國語","t":"柔棉"},"2-2-4":{"s":"數學","t":"家奇"},"2-3-4":{"s":"E創","t":"勝隆"},"2-4-4":{"s":"英創","t":"一蓁"},"2-5-4":{"s":"自然","t":"志宏"},"3-0-1":{"s":"國語","t":"逸蓁"},"3-1-1":{"s":"閩語","t":"庭安"},"3-2-1":{"s":"國語","t":"家奇"},"3-3-1":{"s":"視藝","t":"柔棉"},"3-4-1":{"s":"表藝","t":"貴香"},"3-5-1":{"s":"表藝","t":"思寧"},"3-0-2":{"s":"數學","t":"逸蓁"},"3-1-2":{"s":"生B","t":"勝隆"},"3-2-2":{"s":"數學","t":"家奇"},"3-3-2":{"s":"表藝","t":"士頡"},"3-4-2":{"s":"視藝","t":"柔棉"},"3-5-2":{"s":"視藝","t":"思寧"},"3-0-3":{"s":"生A","t":"一蓁"},"3-1-3":{"s":"生A","t":"志宏"},"3-2-3":{"s":"視藝","t":"柔棉"},"3-3-3":{"s":"國語","t":"士頡"},"3-4-3":{"s":"國語","t":"貴香"},"3-5-3":{"s":"國語","t":"思寧"},"3-0-4":{"s":"生B","t":"勝隆"},"3-1-4":{"s":"生A","t":"志宏"},"3-2-4":{"s":"表藝","t":"家奇"},"3-3-4":{"s":"數學","t":"士頡"},"3-4-4":{"s":"數學","t":"貴香"},"3-5-4":{"s":"數學","t":"思寧"},"3-2-5":{"s":"自然","t":"嘉瑋"},"3-3-5":{"s":"社會","t":"志宏"},"3-4-5":{"s":"寰嶼","t":"一蓁"},"3-5-5":{"s":"社會","t":"勝隆"},"3-2-6":{"s":"自然","t":"嘉瑋"},"3-3-6":{"s":"綜合","t":"志宏"},"3-4-6":{"s":"社會","t":"勝隆"},"3-5-6":{"s":"英語","t":"一蓁"},"3-4-7":{"s":"綜合","t":"志宏"},"3-5-7":{"s":"綜合","t":"思寧"},"4-0-1":{"s":"國語","t":"逸蓁"},"4-1-1":{"s":"國語","t":"柔棉"},"4-2-1":{"s":"國語","t":"家奇"},"4-3-1":{"s":"自然","t":"志宏"},"4-4-1":{"s":"閱創","t":"貴香"},"4-5-1":{"s":"社會","t":"勝隆"},"4-0-2":{"s":"體育","t":"嘉瑋"},"4-1-2":{"s":"國語","t":"柔棉"},"4-2-2":{"s":"英語","t":"逸蓁"},"4-3-2":{"s":"自然","t":"志宏"},"4-4-2":{"s":"國語","t":"貴香"},"4-5-2":{"s":"英創","t":"一蓁"},"4-0-3":{"s":"生B","t":"勝隆"},"4-1-3":{"s":"英創","t":"士頡"},"4-2-3":{"s":"體育","t":"嘉瑋"},"4-3-3":{"s":"體育","t":"瑞謙"},"4-4-3":{"s":"音樂","t":"思寧"},"4-5-3":{"s":"自然","t":"志宏"},"4-0-4":{"s":"數學","t":"逸蓁"},"4-1-4":{"s":"數學","t":"柔棉"},"4-2-4":{"s":"E創","t":"勝隆"},"4-3-4":{"s":"國語","t":"士頡"},"4-4-4":{"s":"體育","t":"嘉瑋"},"4-5-4":{"s":"體育","t":"瑞謙"},"4-2-5":{"s":"綜合","t":"志宏"},"4-3-5":{"s":"英語","t":"士頡"},"4-4-5":{"s":"自然","t":"勝隆"},"4-5-5":{"s":"閱創","t":"思寧"},"4-2-6":{"s":"數創","t":"家奇"},"4-3-6":{"s":"數創","t":"士頡"},"4-4-6":{"s":"自然","t":"勝隆"},"4-5-6":{"s":"國語","t":"思寧"},"4-4-7":{"s":"數創","t":"貴香"},"4-5-7":{"s":"數創","t":"思寧"},"1-3-3":{"s":"體育","t":"瑞謙"},"1-3-4":{"s":"健康","t":"瑞謙"},"2-4-3":{"s":"E創","t":"嘉瑋"}},"blocks":[{"d":2,"c0":0,"c1":5,"r0":7,"r1":9,"text":"週三教師進修"}]},{"from":"2026-09-14","name":"新版課表","tutor":["逸蓁","柔棉","珮慈","士頡","貴香","思寧"],"am":["7:30-8:40直排輪社團 8:00教師會議","共讀+導師時間","學生朝會","共讀+導師時間","共讀+書籍借閱"],"brk":["運動活動","跳繩時間","運動時間","跳繩活動","資源回收"],"cells":{"0-0-1":{"s":"國語","t":"逸蓁"},"0-1-1":{"s":"國語","t":"柔棉"},"0-2-1":{"s":"國語","t":"珮慈"},"0-3-1":{"s":"國語","t":"士頡"},"0-4-1":{"s":"國語","t":"貴香"},"0-5-1":{"s":"國語","t":"思寧"},"1-0-1":{"s":"國語","t":"逸蓁"},"1-1-1":{"s":"國語","t":"柔棉"},"1-2-1":{"s":"國語","t":"珮慈"},"1-3-1":{"s":"國語","t":"士頡"},"1-4-1":{"s":"國語","t":"貴香"},"1-5-1":{"s":"國語","t":"思寧"},"2-0-1":{"s":"國語","t":"逸蓁"},"2-1-1":{"s":"數學","t":"柔棉"},"2-2-1":{"s":"國語","t":"珮慈"},"2-3-1":{"s":"國語","t":"士頡"},"2-4-1":{"s":"國語","t":"貴香"},"2-5-1":{"s":"國語","t":"思寧"},"3-0-1":{"s":"國語","t":"逸蓁"},"3-1-1":{"s":"閩語","t":"庭安"},"3-2-1":{"s":"國語","t":"珮慈"},"3-3-1":{"s":"視藝","t":"柔棉"},"3-4-1":{"s":"表藝","t":"貴香"},"3-5-1":{"s":"表藝","t":"思寧"},"4-0-1":{"s":"國語","t":"逸蓁"},"4-1-1":{"s":"國語","t":"柔棉"},"4-2-1":{"s":"國語","t":"珮慈"},"4-3-1":{"s":"自然","t":"志宏"},"4-4-1":{"s":"閱創","t":"貴香"},"4-5-1":{"s":"社會","t":"勝隆"},"0-0-2":{"s":"國語","t":"逸蓁"},"0-1-2":{"s":"生A","t":"志宏"},"0-2-2":{"s":"數學","t":"珮慈"},"0-3-2":{"s":"數學","t":"士頡"},"0-4-2":{"s":"數學","t":"貴香"},"0-5-2":{"s":"體育","t":"瑞謙"},"1-0-2":{"s":"健康","t":"志宏"},"1-1-2":{"s":"數學","t":"柔棉"},"1-2-2":{"s":"社會","t":"庭安"},"1-3-2":{"s":"數學","t":"士頡"},"1-4-2":{"s":"數學","t":"貴香"},"1-5-2":{"s":"數學","t":"思寧"},"2-0-2":{"s":"數學","t":"逸蓁"},"2-1-2":{"s":"體育","t":"志宏"},"2-2-2":{"s":"閱創","t":"珮慈"},"2-3-2":{"s":"數學","t":"士頡"},"2-4-2":{"s":"數學","t":"貴香"},"2-5-2":{"s":"數學","t":"思寧"},"3-0-2":{"s":"數學","t":"逸蓁"},"3-1-2":{"s":"生A","t":"志宏"},"3-2-2":{"s":"數學","t":"珮慈"},"3-3-2":{"s":"表藝","t":"士頡"},"3-4-2":{"s":"視藝","t":"柔棉"},"3-5-2":{"s":"視藝","t":"思寧"},"4-0-2":{"s":"體育","t":"嘉瑋"},"4-1-2":{"s":"國語","t":"柔棉"},"4-2-2":{"s":"英語","t":"逸蓁"},"4-3-2":{"s":"自然","t":"志宏"},"4-4-2":{"s":"國語","t":"貴香"},"4-5-2":{"s":"英創","t":"一蓁"},"0-0-3":{"s":"體育","t":"嘉瑋"},"0-1-3":{"s":"體育","t":"志宏"},"0-2-3":{"s":"閩語","t":"校長"},"0-3-3":{"s":"音樂","t":"思寧"},"0-4-3":{"s":"英語","t":"一蓁"},"0-5-3":{"s":"健康","t":"瑞謙"},"1-0-3":{"s":"閱創","t":"逸蓁"},"1-1-3":{"s":"生B","t":"勝隆"},"1-2-3":{"s":"數學","t":"珮慈"},"1-3-3":{"s":"體育","t":"瑞謙"},"1-4-3":{"s":"音樂","t":"思寧"},"1-5-3":{"s":"閩語","t":"校長"},"2-0-3":{"s":"生B","t":"勝隆"},"2-1-3":{"s":"國語","t":"柔棉"},"2-2-3":{"s":"社會","t":"庭安"},"2-3-3":{"s":"英創","t":"士頡"},"2-4-3":{"s":"E創","t":"嘉瑋"},"2-5-3":{"s":"自然","t":"志宏"},"3-0-3":{"s":"生B","t":"勝隆"},"3-1-3":{"s":"生A","t":"志宏"},"3-2-3":{"s":"視藝","t":"柔棉"},"3-3-3":{"s":"國語","t":"士頡"},"3-4-3":{"s":"國語","t":"貴香"},"3-5-3":{"s":"英語","t":"一蓁"},"4-0-3":{"s":"數學","t":"逸蓁"},"4-1-3":{"s":"數學","t":"柔棉"},"4-2-3":{"s":"E創","t":"勝隆"},"4-3-3":{"s":"國語","t":"士頡"},"4-4-3":{"s":"體育","t":"嘉瑋"},"4-5-3":{"s":"體育","t":"瑞謙"},"0-0-4":{"s":"數學","t":"逸蓁"},"0-1-4":{"s":"數學","t":"柔棉"},"0-2-4":{"s":"社會","t":"庭安"},"0-3-4":{"s":"閩語","t":"校長"},"0-4-4":{"s":"健康","t":"勝隆"},"0-5-4":{"s":"數學","t":"思寧"},"1-0-4":{"s":"數創","t":"逸蓁"},"1-1-4":{"s":"生B","t":"勝隆"},"1-2-4":{"s":"音樂","t":"思寧"},"1-3-4":{"s":"健康","t":"瑞謙"},"1-4-4":{"s":"閩語","t":"校長"},"1-5-4":{"s":"寰嶼","t":"庭安"},"2-0-4":{"s":"閩語","t":"庭安"},"2-1-4":{"s":"國語","t":"柔棉"},"2-2-4":{"s":"數學","t":"珮慈"},"2-3-4":{"s":"E創","t":"勝隆"},"2-4-4":{"s":"英創","t":"一蓁"},"2-5-4":{"s":"自然","t":"志宏"},"3-0-4":{"s":"生A","t":"一蓁"},"3-1-4":{"s":"生B","t":"勝隆"},"3-2-4":{"s":"表藝","t":"珮慈"},"3-3-4":{"s":"社會","t":"志宏"},"3-4-4":{"s":"數學","t":"貴香"},"3-5-4":{"s":"國語","t":"思寧"},"4-0-4":{"s":"生B","t":"勝隆"},"4-1-4":{"s":"英創","t":"士頡"},"4-2-4":{"s":"體育","t":"嘉瑋"},"4-3-4":{"s":"體育","t":"瑞謙"},"4-4-4":{"s":"英語","t":"一蓁"},"4-5-4":{"s":"自然","t":"志宏"},"0-2-5":{"s":"自然","t":"嘉瑋"},"0-3-5":{"s":"閱創","t":"士頡"},"0-4-5":{"s":"社會","t":"勝隆"},"0-5-5":{"s":"E創","t":"一蓁"},"1-0-5":{"s":"英創","t":"逸蓁"},"1-1-5":{"s":"健康","t":"柔棉"},"1-2-5":{"s":"健康","t":"嘉瑋"},"1-3-5":{"s":"自然","t":"志宏"},"1-4-5":{"s":"社會","t":"勝隆"},"1-5-5":{"s":"音樂","t":"思寧"},"3-2-5":{"s":"自然","t":"嘉瑋"},"3-3-5":{"s":"數學","t":"士頡"},"3-4-5":{"s":"寰嶼","t":"一蓁"},"3-5-5":{"s":"社會","t":"勝隆"},"4-2-5":{"s":"綜合","t":"珮慈"},"4-3-5":{"s":"英語","t":"士頡"},"4-4-5":{"s":"自然","t":"勝隆"},"4-5-5":{"s":"綜合","t":"志宏"},"0-2-6":{"s":"體育","t":"嘉瑋"},"0-3-6":{"s":"社會","t":"志宏"},"0-4-6":{"s":"自然","t":"勝隆"},"0-5-6":{"s":"英語","t":"一蓁"},"1-0-6":{"s":"生A","t":"一蓁"},"1-1-6":{"s":"閱創","t":"柔棉"},"1-2-6":{"s":"家鄉","t":"珮慈"},"1-3-6":{"s":"家鄉","t":"志宏"},"1-4-6":{"s":"家鄉","t":"貴香"},"1-5-6":{"s":"家鄉","t":"勝隆"},"3-2-6":{"s":"自然","t":"嘉瑋"},"3-3-6":{"s":"綜合","t":"志宏"},"3-4-6":{"s":"社會","t":"勝隆"},"3-5-6":{"s":"數學","t":"思寧"},"4-2-6":{"s":"數創","t":"珮慈"},"4-3-6":{"s":"數創","t":"士頡"},"4-4-6":{"s":"自然","t":"勝隆"},"4-5-6":{"s":"國語","t":"思寧"},"0-2-7":{"s":"英創","t":"逸蓁"},"0-3-7":{"s":"社會","t":"志宏"},"0-4-7":{"s":"體育","t":"嘉瑋"},"0-5-7":{"s":"社會","t":"勝隆"},"1-0-7":{"s":"生A","t":"一蓁"},"1-1-7":{"s":"數創","t":"柔棉"},"1-2-7":{"s":"綜海","t":"珮慈"},"1-3-7":{"s":"綜海","t":"志宏"},"1-4-7":{"s":"綜海","t":"貴香"},"1-5-7":{"s":"綜海","t":"勝隆"},"3-4-7":{"s":"綜合","t":"志宏"},"3-5-7":{"s":"閱創","t":"思寧"},"4-4-7":{"s":"數創","t":"貴香"},"4-5-7":{"s":"數創","t":"思寧"}},"blocks":[{"d":2,"c0":0,"c1":5,"r0":7,"r1":9,"text":"週三教師進修"}]}],"days":{"2026-09-01":{"cells":{"c3p3":{"type":"sub","s":"體育","t":"庭安","note":"","os":"體育","ot":"瑞謙"},"c3p4":{"type":"sub","s":"健康","t":"士頡","note":"","os":"健康","ot":"瑞謙"}}},"2026-09-02":{"cells":{"c4p3":{"type":"sub","s":"E創","t":"一蓁","note":"","os":"E創","ot":"嘉瑋"}}},"2026-09-07":{"cells":{"c3p2":{"type":"swap","s":"閩語","t":"校長","note":"","os":"數學","ot":"士頡"},"c0p3":{"type":"sub","s":"體育","t":"勝隆","note":"","os":"體育","ot":"嘉瑋"},"c3p4":{"type":"swap","s":"數學","t":"士頡","note":"","os":"閩語","ot":"校長"},"c4p4":{"type":"swap","s":"閩語","t":"校長","note":"","os":"健康","ot":"勝隆"},"c2p5":{"type":"sub","s":"自然","t":"逸蓁","note":"","os":"自然","ot":"嘉瑋"},"c2p6":{"type":"sub","s":"體育","t":"瑞謙","note":"","os":"體育","ot":"嘉瑋"},"c4p7":{"type":"sub","s":"體育","t":"瑞謙","note":"","os":"體育","ot":"嘉瑋"}}},"2026-09-08":{"cells":{"c1p2":{"type":"swap","s":"生B","t":"勝隆","note":"","os":"數學","ot":"柔棉"},"c1p4":{"type":"swap","s":"數學","t":"柔棉","note":"","os":"生B","ot":"勝隆"},"c4p4":{"type":"swap","s":"健康","t":"勝隆","note":"","os":"閩語","ot":"校長"},"c2p5":{"type":"sub","s":"健康","t":"士頡","note":"","os":"健康","ot":"嘉瑋"}}},"2026-09-09":{"cells":{"c4p1":{"type":"sub","s":"國語","t":"勝隆","note":"","os":"國語","ot":"貴香"},"c0p2":{"type":"swap","s":"閩語","t":"庭安","note":"","os":"數學","ot":"逸蓁"},"c3p2":{"type":"swap","s":"E創","t":"勝隆","note":"","os":"數學","ot":"士頡"},"c4p2":{"type":"swap","s":"英創","t":"一蓁","note":"","os":"數學","ot":"貴香"},"c0p4":{"type":"swap","s":"數學","t":"逸蓁","note":"","os":"閩語","ot":"庭安"},"c3p4":{"type":"swap","s":"數學","t":"士頡","note":"","os":"E創","ot":"勝隆"},"c4p4":{"type":"sub","s":"數學","t":"思寧","note":"","os":"英創","ot":"一蓁"}},"tut":{"c4":{"t":"志宏","type":"sub"}},"blocks":[{"c0":0,"c1":5,"r0":7,"r1":9,"text":"藝術深耕—藍曬創作研習\n船班分配如下\n12:00：校長、庭安、瑞謙、\n嘉瑋、一蓁、勝隆\n13:30：思寧、志宏、士頡、\n家奇、柔棉、逸蓁","type":""}]},"2026-09-11":{"cells":{"c2p3":{"type":"sub","s":"體育","t":"一蓁","note":"","os":"體育","ot":"嘉瑋"},"c3p3":{"type":"sub","s":"體育","t":"庭安","note":"","os":"體育","ot":"瑞謙"},"c4p4":{"type":"sub","s":"體育","t":"貴香","note":"","os":"體育","ot":"嘉瑋"},"c5p4":{"type":"sub","s":"體育","t":"思寧","note":"","os":"體育","ot":"瑞謙"}}},"2026-09-14":{"cells":{"c2p1":{"type":"plain","s":"國語","t":"勝隆","note":"","os":"國語","ot":"珮慈"},"c2p2":{"type":"plain","s":"數學","t":"勝隆","note":"","os":"數學","ot":"珮慈"},"c3p2":{"type":"swap","s":"閩語","t":"校長","note":"","os":"數學","ot":"士頡"},"c2p4":{"type":"swap","s":"自然","t":"嘉瑋","note":"","os":"社會","ot":"庭安"},"c3p4":{"type":"swap","s":"數學","t":"士頡","note":"","os":"閩語","ot":"校長"},"c4p4":{"type":"sub","s":"健康","t":"貴香","note":"","os":"健康","ot":"勝隆"},"c4p5":{"type":"sub","s":"社會","t":"志宏","note":"","os":"社會","ot":"勝隆"},"c4p6":{"type":"sub","s":"自然","t":"勝隆","note":"","os":"自然","ot":"勝隆"},"c5p7":{"type":"sub","s":"社會","t":"一蓁","note":"","os":"社會","ot":"勝隆"}},"tut":{"c2":{"t":"勝隆","type":"plain"}}},"2026-09-15":{"cells":{"c2p1":{"type":"plain","s":"國語","t":"勝隆","note":"","os":"國語","ot":"珮慈"},"c0p2":{"type":"plain","s":"閱創","t":"逸蓁","note":"","os":"健康","ot":"志宏"},"c0p3":{"type":"plain","s":"健康","t":"志宏","note":"","os":"閱創","ot":"逸蓁"},"c1p3":{"type":"sub","s":"生B","t":"柔棉","note":"","os":"生B","ot":"勝隆"},"c2p3":{"type":"plain","s":"數學","t":"勝隆","note":"","os":"數學","ot":"珮慈"},"c5p3":{"type":"swap","s":"E創","t":"一蓁","note":"","os":"閩語","ot":"校長"},"c1p4":{"type":"sub","s":"生B","t":"一蓁","note":"","os":"生B","ot":"勝隆"},"c4p4":{"type":"swap","s":"綜合","t":"志宏","note":"","os":"閩語","ot":"校長"},"c4p5":{"type":"sub","s":"社會","t":"貴香","note":"","os":"社會","ot":"勝隆"},"c2p6":{"type":"plain","s":"家鄉","t":"勝隆","note":"","os":"家鄉","ot":"珮慈"},"c5p6":{"type":"sub","s":"家鄉","t":"思寧","note":"","os":"家鄉","ot":"勝隆"},"c2p7":{"type":"plain","s":"綜海","t":"勝隆","note":"","os":"綜海","ot":"珮慈"},"c5p7":{"type":"sub","s":"綜海","t":"思寧","note":"","os":"綜海","ot":"勝隆"}},"tut":{"c2":{"t":"勝隆","type":"plain"}}},"2026-09-16":{"cells":{"c2p1":{"type":"plain","s":"國語","t":"勝隆","note":"","os":"國語","ot":"珮慈"},"c2p2":{"type":"plain","s":"閱創","t":"勝隆","note":"","os":"閱創","ot":"珮慈"},"c0p3":{"type":"sub","s":"生B","t":"逸蓁","note":"","os":"生B","ot":"勝隆"},"c2p4":{"type":"plain","s":"數學","t":"勝隆","note":"","os":"數學","ot":"珮慈"},"c3p4":{"type":"sub","s":"E創","t":"士頡","note":"","os":"E創","ot":"勝隆"}},"tut":{"c2":{"t":"勝隆","type":"plain"}}},"2026-09-17":{"cells":{"c2p1":{"type":"plain","s":"國語","t":"勝隆","note":"","os":"國語","ot":"珮慈"},"c2p2":{"type":"plain","s":"數學","t":"勝隆","note":"","os":"數學","ot":"珮慈"},"c0p3":{"type":"sub","s":"生B","t":"庭安","note":"","os":"生B","ot":"勝隆"},"c1p4":{"type":"sub","s":"生B","t":"庭安","note":"","os":"生B","ot":"勝隆"},"c2p4":{"type":"plain","s":"表藝","t":"勝隆","note":"","os":"表藝","ot":"珮慈"},"c5p5":{"type":"sub","s":"社會","t":"勝隆","note":"","os":"社會","ot":"勝隆"},"c2p6":{"type":"swap","s":"社會","t":"庭安","note":"","os":"自然","ot":"嘉瑋"},"c4p6":{"type":"sub","s":"社會","t":"一蓁","note":"","os":"社會","ot":"勝隆"},"c5p7":{"type":"sub","s":"綜合","t":"思寧","note":"","os":"閱創","ot":"思寧"}},"tut":{"c2":{"t":"勝隆","type":"plain"}}},"2026-09-18":{"cells":{"c2p1":{"type":"plain","s":"國語","t":"勝隆","note":"","os":"國語","ot":"珮慈"},"c5p1":{"type":"sub","s":"社會","t":"一蓁","note":"","os":"社會","ot":"勝隆"},"c0p3":{"type":"sub","s":"生B","t":"逸蓁","note":"","os":"數學","ot":"逸蓁"},"c3p3":{"type":"sub","s":"國語","t":"一蓁","note":"","os":"國語","ot":"士頡"},"c5p3":{"type":"sub","s":"體育","t":"思寧","note":"","os":"體育","ot":"瑞謙"},"c0p4":{"type":"plain","s":"數學","t":"逸蓁","note":"","os":"生B","ot":"勝隆"},"c1p4":{"type":"sub","s":"英創","t":"柔棉","note":"","os":"英創","ot":"士頡"},"c3p4":{"type":"sub","s":"體育","t":"勝隆","note":"","os":"體育","ot":"瑞謙"},"c2p5":{"type":"plain","s":"綜合","t":"志宏","note":"","os":"綜合","ot":"珮慈"},"c3p5":{"type":"sub","s":"英語","t":"逸蓁","note":"","os":"英語","ot":"士頡"},"c4p5":{"type":"sub","s":"自然","t":"嘉瑋","note":"","os":"自然","ot":"勝隆"},"c5p5":{"type":"plain","s":"閱創","t":"思寧","note":"","os":"綜合","ot":"志宏"},"c2p6":{"type":"plain","s":"數創","t":"勝隆","note":"","os":"數創","ot":"珮慈"},"c3p6":{"type":"sub","s":"數創","t":"貴香","note":"","os":"數創","ot":"士頡"},"c4p6":{"type":"sub","s":"自然","t":"嘉瑋","note":"","os":"自然","ot":"勝隆"}},"tut":{"c2":{"t":"勝隆","type":"plain"},"c3":{"t":"志宏","type":"sub"}}},"2026-10-05":{"cells":{"c4p1":{"type":"sub","s":"國語","t":"志宏","note":"","os":"國語","ot":"貴香"},"c4p2":{"type":"sub","s":"數學","t":"一蓁","note":"","os":"數學","ot":"貴香"},"c5p5":{"type":"swap","s":"閩語","t":"校長","note":"","os":"E創","ot":"一蓁"}},"tut":{"c4":{"t":"志宏","type":"sub"}}},"2026-10-08":{"cells":{"c2p1":{"type":"sub","s":"國語","t":"一蓁","note":"","os":"國語","ot":"珮慈"},"c2p2":{"type":"sub","s":"數學","t":"勝隆","note":"","os":"數學","ot":"珮慈"},"c2p4":{"type":"sub","s":"表藝","t":"嘉瑋","note":"","os":"表藝","ot":"珮慈"}},"tut":{"c2":{"t":"勝隆","type":"sub"}}},"2026-10-12":{"cells":{"c3p1":{"type":"swap","s":"社會","t":"志宏","note":"","os":"國語","ot":"士頡"},"c1p2":{"type":"swap","s":"閩語","t":"庭安","note":"","os":"生A","ot":"志宏"},"c5p2":{"type":"sub","s":"體育","t":"嘉瑋","note":"","os":"體育","ot":"瑞謙"},"c5p3":{"type":"sub","s":"健康","t":"庭安","note":"","os":"健康","ot":"瑞謙"},"c4p4":{"type":"swap","s":"綜合","t":"志宏","note":"","os":"健康","ot":"勝隆"},"c4p5":{"type":"swap","s":"國語","t":"貴香","note":"","os":"社會","ot":"勝隆"},"c3p6":{"type":"swap","s":"國語","t":"士頡","note":"","os":"社會","ot":"志宏"},"c4p6":{"type":"swap","s":"數學","t":"貴香","note":"","os":"自然","ot":"勝隆"},"c5p7":{"type":"swap","s":"數創","t":"思寧","note":"","os":"社會","ot":"勝隆"}}},"2026-10-14":{"cells":{"c4p1":{"type":"swap","s":"社會","t":"勝隆","note":"","os":"國語","ot":"貴香"},"c4p2":{"type":"swap","s":"自然","t":"勝隆","note":"","os":"數學","ot":"貴香"}}},"2026-10-15":{"cells":{"c4p7":{"type":"swap","s":"健康","t":"勝隆","note":"","os":"綜合","ot":"志宏"}}},"2026-10-16":{"cells":{"c5p7":{"type":"swap","s":"社會","t":"勝隆","note":"","os":"數創","ot":"思寧"}}},"2026-10-27":{"cells":{"c0p1":{"type":"swap","s":"生B","t":"勝隆","note":"","os":"國語","ot":"逸蓁"},"c0p5":{"type":"swap","s":"體育","t":"嘉瑋","note":"","os":"英創","ot":"逸蓁"},"c2p5":{"type":"swap","s":"英創","t":"逸蓁","note":"","os":"健康","ot":"嘉瑋"},"c3p5":{"type":"swap","s":"英語","t":"士頡","note":"","os":"自然","ot":"志宏"},"c4p5":{"type":"swap","s":"自然","t":"勝隆","note":"","os":"社會","ot":"勝隆"},"c5p5":{"type":"swap","s":"綜合","t":"志宏","note":"","os":"音樂","ot":"思寧"},"c2p6":{"type":"swap","s":"數創","t":"珮慈","note":"","os":"家鄉","ot":"珮慈"},"c3p6":{"type":"swap","s":"數創","t":"士頡","note":"","os":"家鄉","ot":"志宏"},"c4p6":{"type":"swap","s":"自然","t":"勝隆","note":"","os":"家鄉","ot":"貴香"},"c5p6":{"type":"swap","s":"國語","t":"思寧","note":"","os":"家鄉","ot":"勝隆"},"c1p7":{"type":"swap","s":"英創","t":"士頡","note":"","os":"數創","ot":"柔棉"},"c2p7":{"type":"plain","s":"","t":"","note":"","os":"綜海","ot":"珮慈"},"c3p7":{"type":"plain","s":"","t":"","note":"","os":"綜海","ot":"志宏"},"c4p7":{"type":"swap","s":"數創","t":"貴香","note":"","os":"綜海","ot":"貴香"},"c5p7":{"type":"swap","s":"數創","t":"思寧","note":"","os":"綜海","ot":"勝隆"}}},"2026-10-29":{"cells":{"c0p2":{"type":"plain","s":"閩語","t":"庭安","note":"","os":"數學","ot":"逸蓁"}}},"2026-10-30":{"cells":{"c0p2":{"type":"swap","s":"英創","t":"逸蓁","note":"","os":"體育","ot":"嘉瑋"},"c0p4":{"type":"swap","s":"國語","t":"逸蓁","note":"","os":"生B","ot":"勝隆"},"c1p4":{"type":"swap","s":"數創","t":"柔棉","note":"","os":"英創","ot":"士頡"},"c2p5":{"type":"swap","s":"健康","t":"嘉瑋","note":"","os":"綜合","ot":"珮慈"},"c3p5":{"type":"swap","s":"自然","t":"志宏","note":"","os":"英語","ot":"士頡"},"c4p5":{"type":"swap","s":"社會","t":"勝隆","note":"","os":"自然","ot":"勝隆"},"c5p5":{"type":"swap","s":"音樂","t":"思寧","note":"","os":"綜合","ot":"志宏"},"c2p6":{"type":"swap","s":"家鄉","t":"珮慈","note":"","os":"數創","ot":"珮慈"},"c3p6":{"type":"swap","s":"家鄉","t":"志宏","note":"","os":"數創","ot":"士頡"},"c4p6":{"type":"swap","s":"家鄉","t":"貴香","note":"","os":"自然","ot":"勝隆"},"c5p6":{"type":"swap","s":"家鄉","t":"勝隆","note":"","os":"國語","ot":"思寧"},"c2p7":{"type":"swap","s":"綜海","t":"珮慈","note":"","os":"","ot":""},"c3p7":{"type":"swap","s":"綜海","t":"志宏","note":"","os":"","ot":""},"c4p7":{"type":"swap","s":"綜海","t":"貴香","note":"","os":"數創","ot":"貴香"},"c5p7":{"type":"swap","s":"綜海","t":"勝隆","note":"","os":"數創","ot":"思寧"}}},"2026-11-02":{"cells":{"c4p1":{"type":"sub","s":"國語","t":"志宏","note":"","os":"國語","ot":"貴香"},"c4p2":{"type":"sub","s":"數學","t":"一蓁","note":"","os":"數學","ot":"貴香"},"c5p2":{"type":"sub","s":"體育","t":"勝隆","note":"","os":"體育","ot":"瑞謙"},"c2p3":{"type":"swap","s":"社會","t":"庭安","note":"","os":"閩語","ot":"校長"},"c5p3":{"type":"sub","s":"健康","t":"勝隆","note":"","os":"健康","ot":"瑞謙"},"c3p4":{"type":"swap","s":"自然","t":"志宏","note":"","os":"閩語","ot":"校長"}},"tut":{"c4":{"t":"勝隆","type":"sub"}}},"2026-11-03":{"cells":{"c2p2":{"type":"swap","s":"閩語","t":"校長","note":"","os":"社會","ot":"庭安"},"c3p5":{"type":"swap","s":"閩語","t":"校長","note":"","os":"自然","ot":"志宏"}}},"2026-11-04":{"cells":{"c0p5":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c1p5":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c2p5":{"type":"swap","s":"自然","t":"嘉瑋","note":"","os":"","ot":""},"c3p5":{"type":"swap","s":"數學","t":"士頡","note":"","os":"","ot":""},"c4p5":{"type":"swap","s":"數創","t":"貴香","note":"","os":"","ot":""},"c5p5":{"type":"swap","s":"社會","t":"勝隆","note":"","os":"","ot":""},"c0p6":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c1p6":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c2p6":{"type":"swap","s":"自然","t":"嘉瑋","note":"","os":"","ot":""},"c3p6":{"type":"swap","s":"綜合","t":"志宏","note":"","os":"","ot":""},"c4p6":{"type":"swap","s":"社會","t":"勝隆","note":"","os":"","ot":""},"c5p6":{"type":"swap","s":"數學","t":"思寧","note":"","os":"","ot":""},"c0p7":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c1p7":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c2p7":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c3p7":{"type":"swap","s":"","t":"","note":"","os":"","ot":""},"c4p7":{"type":"swap","s":"綜合","t":"志宏","note":"","os":"","ot":""},"c5p7":{"type":"swap","s":"閱創","t":"思寧","note":"","os":"","ot":""}},"blocks":[]},"2026-11-05":{"blocks":[{"c0":0,"c1":5,"r0":7,"r1":9,"text":"與作家有約\n13:00-14:25 學生場\n14:30-16:00 教師研習","type":""}]},"2026-11-06":{"cells":{"c4p7":{"type":"swap","s":"寰嶼","t":"一蓁","note":"","os":"數創","ot":"貴香"}}},"2026-11-09":{"cells":{"c3p1":{"type":"swap","s":"體育","t":"瑞謙","note":"","os":"國語","ot":"士頡"},"c3p2":{"type":"swap","s":"健康","t":"瑞謙","note":"","os":"數學","ot":"士頡"},"c0p3":{"type":"sub","s":"體育","t":"勝隆","note":"","os":"體育","ot":"嘉瑋"},"c2p3":{"type":"sub","s":"體育","t":"瑞謙","note":"","os":"閩語","ot":"校長"},"c3p3":{"type":"sub","s":"音樂","t":"一蓁","note":"","os":"音樂","ot":"思寧"},"c2p4":{"type":"sub","s":"健康","t":"瑞謙","note":"","os":"社會","ot":"庭安"},"c3p4":{"type":"swap","s":"綜合","t":"志宏","note":"","os":"閩語","ot":"校長"},"c2p5":{"type":"sub","s":"自然","t":"志宏","note":"","os":"自然","ot":"嘉瑋"},"c2p6":{"type":"swap","s":"綜合","t":"珮慈","note":"","os":"體育","ot":"嘉瑋"}},"blocks":[{"c0":4,"c1":5,"r0":1,"r1":5,"text":"縣外教學","type":""},{"c0":4,"c1":5,"r0":7,"r1":9,"text":"","type":""}]},"2026-11-10":{"cells":{"c2p2":{"type":"sub","s":"社會","t":"一蓁","note":"","os":"社會","ot":"庭安"},"c3p3":{"type":"swap","s":"國語","t":"士頡","note":"","os":"體育","ot":"瑞謙"},"c2p4":{"type":"sub","s":"音樂","t":"志宏","note":"","os":"音樂","ot":"思寧"},"c3p4":{"type":"swap","s":"數學","t":"士頡","note":"","os":"健康","ot":"瑞謙"},"c2p5":{"type":"sub","s":"社會","t":"一蓁","note":"","os":"健康","ot":"嘉瑋"}},"blocks":[{"c0":4,"c1":5,"r0":1,"r1":5,"text":"縣外教學","type":""},{"c0":4,"c1":5,"r0":7,"r1":9,"text":"","type":""}]},"2026-11-11":{"cells":{"c2p3":{"type":"sub","s":"社會","t":"一蓁","note":"","os":"社會","ot":"庭安"},"c0p4":{"type":"swap","s":"數學","t":"逸蓁","note":"","os":"閩語","ot":"庭安"}},"blocks":[{"c0":4,"c1":5,"r0":1,"r1":5,"text":"縣外教學","type":""},{"c0":0,"c1":5,"r0":7,"r1":9,"text":"週三教師進修","type":""}]},"2026-11-12":{"cells":{"c0p2":{"type":"swap","s":"閩語","t":"庭安","note":"","os":"數學","ot":"逸蓁"},"c3p6":{"type":"swap","s":"閩語","t":"校長","note":"","os":"綜合","ot":"志宏"}}},"2026-11-13":{"cells":{"c2p1":{"type":"swap","s":"閩語","t":"校長","note":"","os":"國語","ot":"珮慈"},"c3p1":{"type":"swap","s":"國語","t":"士頡","note":"","os":"自然","ot":"志宏"},"c3p2":{"type":"swap","s":"健康","t":"瑞謙","note":"","os":"自然","ot":"志宏"},"c5p4":{"type":"swap","s":"國語","t":"思寧","note":"","os":"自然","ot":"志宏"},"c2p5":{"type":"swap","s":"國語","t":"珮慈","note":"","os":"綜合","ot":"珮慈"},"c5p5":{"type":"swap","s":"國語","t":"思寧","note":"","os":"綜合","ot":"志宏"}}}}};   // 兩個版本的基本課表 + W1–W11 既有週課表
+const DEFAULT_SETTINGS = {
+  termName: "115學年度上學期",
+  start: "2026-08-31",
+  weeks: 20,
+  holidays: [
+    {d:"2026-09-25", n:"中秋節"},
+    {d:"2026-09-28", n:"教師節"},
+    {d:"2026-10-09", n:"國慶日補假"},
+    {d:"2026-10-26", n:"光復節補假"},
+    {d:"2026-12-25", n:"行憲紀念日"},
+    {d:"2027-01-01", n:"元旦"}
+  ]
+};
+
+const CN = ["一","二","三","四","五","六"];
+const DAYN = ["一","二","三","四","五"];
+const PNUM = {1:"一",2:"二",3:"三",4:"四",5:"五",6:"六",7:"七"};
+const PER = {1:"08:40~09:20",2:"09:30~10:10",3:"10:30~11:10",4:"11:20~12:00",5:"13:30~14:10",6:"14:20~15:00",7:"15:10~15:50"};
+const ROWS = ["am",1,2,"brk",3,4,"lunch",5,6,7];
+const RI = {am:0,1:1,2:2,brk:3,3:4,4:5,lunch:6,5:7,6:8,7:9};
+const TYPES = {
+  event:{name:"學校行事", cls:"ty-event", color:"var(--event)"},
+  swap: {name:"教師協調代調課", cls:"ty-swap", color:"var(--swap)"},
+  sub:  {name:"公假排代／自費代課", cls:"ty-sub", color:"var(--sub)"},
+  plain:{name:"未標色異動", cls:"", color:"#fff"}
+};
+
+const S = {
+  settings: structuredClone(DEFAULT_SETTINGS),
+  bases: structuredClone(SEED.bases),
+  basesInDb: true,
+  days: {},
+  admin: false,
+  view: "week", week: 1, cls: 0, who: "",
+  sel: [], other: null,        // other = {kind:'text'|'blk'|'tut', key}
+  editBase: false, baseIdx: 0,
+  month: "", ctypes: new Set(["sub","swap"]),
+  exporting: false
+};
+const DEL = Symbol("del");
+let fb = null;
+
+/* ---------- utils ---------- */
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const escBr = v => esc(v).replace(/\n/g,"<br>");
+const pad = n => String(n).padStart(2,"0");
+const ymd = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+const pdate = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (s,n) => { const d = pdate(s); d.setDate(d.getDate()+n); return ymd(d); };
+const mmdd = s => s.slice(5,7)+s.slice(8,10);
+const md = s => `${+s.slice(5,7)}/${+s.slice(8,10)}`;
+function termStart(){ const d = pdate(S.settings.start); d.setDate(d.getDate()-((d.getDay()+6)%7)); return ymd(d); }
+const weekDates = w => [0,1,2,3,4].map(i => addDays(termStart(), (w-1)*7+i));
+const weekOf = date => 1 + Math.floor((pdate(date)-pdate(termStart()))/864e5/7);
+function currentWeek(){
+  const diff = Math.round((pdate(ymd(new Date())) - pdate(termStart()))/864e5);
+  let w = Math.floor(diff/7)+1; if (diff>=0 && diff%7>=5) w++;
+  return Math.min(Math.max(w,1), S.settings.weeks);
+}
+const holidayName = date => date ? ((S.settings.holidays||[]).find(h => h.d===date)?.n || null) : null;
+const weekdayOf = date => (pdate(date).getDay()+6)%7;
+const termShort = () => S.settings.termName.replace("學年度","").replace("學期","");
+
+/* ---------- data access ---------- */
+function baseFor(date){
+  const L = S.bases;
+  if (!date) return L[Math.min(S.baseIdx, L.length-1)];
+  let b = L[0]; for (const x of L) if (x.from <= date) b = x; return b;
+}
+const baseCell = (date,d,c,p) => baseFor(date).cells[`${d}-${c}-${p}`] || null;
+function cellAt(date,d,c,p){
+  const b = baseCell(date,d,c,p);
+  const ch = date ? S.days[date]?.cells?.[`c${c}p${p}`] : null;
+  if (ch) return {...ch, changed:true, base:b};
+  return b ? {...b, base:b} : null;
+}
+function tutorAt(date,c){
+  const o = date ? S.days[date]?.tut?.[`c${c}`] : null;
+  return o ? {t:o.t, type:o.type, changed:true} : {t:baseFor(date).tutor[c], changed:false};
+}
+function dayText(date,d,field){
+  const o = date ? S.days[date]?.[field] : undefined;
+  return o!=null ? {text:o, changed:true} : {text:baseFor(date)[field][d], changed:false};
+}
+function dayBlocks(date,d){
+  const day = date ? S.days[date] : null;
+  if (day && Array.isArray(day.blocks)) return {list:day.blocks, own:true};
+  return {list:(baseFor(date).blocks||[]).filter(b => b.d===d), own:false};
+}
+/* 一天的版面：10 列 × 6 班，每格屬於一個項目（假日／活動格／晨間大下課文字／午餐／一般課） */
+function dayModel(date,d){
+  const grid = Array.from({length:10}, () => Array(6).fill(null)); const items = [];
+  const put = it => { items.push(it); for (let r=it.r0;r<=it.r1;r++) for (let c=it.c0;c<=it.c1;c++) if (!grid[r][c]) grid[r][c] = it; };
+  const segs = r => { const out = []; let c = 0; while (c<6){ if (grid[r][c]) { c++; continue; } let e = c; while (e+1<6 && !grid[r][e+1]) e++; out.push([c,e]); c = e+1; } return out; };
+  const hol = holidayName(date);
+  if (hol){ put({kind:"hol", r0:0, r1:9, c0:0, c1:5, text:hol}); return {grid, items}; }
+  const bl = dayBlocks(date,d);
+  bl.list.forEach((b,i) => put({kind:"block", r0:b.r0, r1:b.r1, c0:b.c0, c1:b.c1, text:b.text||"", type:b.type||"", idx:i}));
+  for (const [r,f] of [[0,"am"],[3,"brk"]]) segs(r).forEach(([c0,c1]) => { const x = dayText(date,d,f); put({kind:"text", r0:r, r1:r, c0, c1, text:x.text, changed:x.changed, field:f}); });
+  segs(6).forEach(([c0,c1]) => put({kind:"lunch", r0:6, r1:6, c0, c1}));
+  for (const p of [1,2,3,4,5,6,7]){ const r = RI[p]; for (let c=0;c<6;c++) if (!grid[r][c]) put({kind:"cell", r0:r, r1:r, c0:c, c1:c, c, p}); }
+  return {grid, items};
+}
+function allTeachers(){
+  const set = new Set();
+  S.bases.forEach(b => { b.tutor.forEach(t => set.add(t)); Object.values(b.cells).forEach(v => v.t && set.add(v.t)); });
+  Object.values(S.days).forEach(day => { Object.values(day.cells||{}).forEach(v => v.t && set.add(v.t)); Object.values(day.tut||{}).forEach(v => v.t && set.add(v.t)); });
+  return [...set];
+}
+function conflicts(dates, models){
+  const out = new Set();
+  dates.forEach((date,d) => {
+    const M = models[d];
+    for (let p=1;p<=7;p++){
+      const m = {};
+      for (let c=0;c<6;c++){ if (M.grid[RI[p]][c]?.kind!=="cell") continue; const x = cellAt(date,d,c,p); if (x?.t) (m[x.t] ||= []).push(`${date}|${c}|${p}`); }
+      Object.values(m).forEach(a => a.length>1 && a.forEach(k => out.add(k)));
+    }
+  });
+  return out;
+}
+
+/* ---------- storage ---------- */
+const LS_KEY = "tt-demo-v2";
+function deepMerge(t, patch){
+  for (const [k,v] of Object.entries(patch)){
+    if (v===DEL) delete t[k];
+    else if (v && typeof v==="object" && !Array.isArray(v)) { t[k] = (t[k] && typeof t[k]==="object" && !Array.isArray(t[k])) ? t[k] : {}; deepMerge(t[k], v); }
+    else t[k] = v;
+  }
+  return t;
+}
+function saveDemo(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({settings:S.settings, bases:S.bases, days:S.days})); }catch(e){} }
+function toFire(patch){
+  const o = {};
+  for (const [k,v] of Object.entries(patch)) o[k] = v===DEL ? fb.deleteField() : (v && typeof v==="object" && !Array.isArray(v)) ? toFire(v) : v;
+  return o;
+}
+async function writeDay(date, patch){
+  if (DEMO){ S.days[date] = deepMerge(S.days[date]||{}, patch); saveDemo(); render(); return; }
+  await fb.setDoc(fb.doc(fb.db,COL_DAYS,date), toFire(patch), {merge:true});
+}
+async function writeSettings(obj){
+  if (DEMO){ S.settings = obj; saveDemo(); render(); return; }
+  await fb.setDoc(fb.doc(fb.db,COL_META,"settings"), obj);
+}
+async function writeBases(list){
+  if (DEMO){ S.bases = list; saveDemo(); render(); return; }
+  await fb.setDoc(fb.doc(fb.db,COL_META,"bases"), {list});
+}
+async function importSeed(){
+  if (!confirm("要把 W1–W11 既有週課表與兩個版本的基本課表寫入雲端嗎？\n（同一天若已有資料會被覆蓋）")) return;
+  await writeBases(SEED.bases);
+  await Promise.all(Object.entries(SEED.days).map(([date,doc]) => fb.setDoc(fb.doc(fb.db,COL_DAYS,date), doc)));
+  alert("匯入完成");
+}
+async function initData(){
+  if (DEMO){
+    $("#demoBadge").hidden = false;
+    let saved = null; try{ saved = JSON.parse(localStorage.getItem(LS_KEY)||"null"); }catch(e){}
+    if (saved){ S.settings = saved.settings; S.bases = saved.bases; S.days = saved.days||{}; }
+    else S.days = structuredClone(SEED.days);
+    return;
+  }
+  const V = "11.6.1";   // 與教科書系統相同版本
+  const [appM, fsM, auM] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`)
+  ]);
+  const app = appM.initializeApp(FIREBASE_CONFIG);
+  fb = { db: fsM.getFirestore(app), auth: auM.getAuth(app), doc: fsM.doc, setDoc: fsM.setDoc, deleteField: fsM.deleteField,
+         signIn: auM.signInWithEmailAndPassword, signOut: auM.signOut };
+  auM.onAuthStateChanged(fb.auth, u => { S.admin = !!u && u.email===ADMIN_EMAIL; render(); });
+  const err = e => console.error("讀取失敗", e);
+  fsM.onSnapshot(fsM.doc(fb.db,COL_META,"settings"), s => { S.settings = s.exists() ? {...DEFAULT_SETTINGS, ...s.data()} : structuredClone(DEFAULT_SETTINGS); render(); }, err);
+  fsM.onSnapshot(fsM.doc(fb.db,COL_META,"bases"), s => { S.basesInDb = s.exists(); S.bases = s.exists() ? s.data().list : structuredClone(SEED.bases); render(); }, err);
+  fsM.onSnapshot(fsM.collection(fb.db,COL_DAYS), qs => { const o = {}; qs.forEach(d => o[d.id] = d.data()); S.days = o; render(); }, err);
+}
+
+/* ---------- table pieces ---------- */
+function rowHead(r){
+  if (r==="am") return `<th class="rh">晨間<br><small>08:10~08:30</small></th>`;
+  if (r==="brk") return `<th class="rh">大下課<br><small>10:10~10:30</small></th>`;
+  if (r==="lunch") return `<th class="rh">午餐<br><small>12:00~13:20</small></th>`;
+  return `<th class="rh">${PNUM[r]}<br><small>${PER[r]}</small></th>`;
+}
+function dayLabel(dates,d){ return dates ? `${mmdd(dates[d])}(${DAYN[d]})` : `(${DAYN[d]})`; }
+const editable = () => S.admin && !S.exporting;
+const isSel = (kind,key) => !S.exporting && S.other?.kind===kind && S.other.key===key;
+function tutorTd(date,c,dstart){
+  const x = tutorAt(date,c); const key = `${date}|${c}`;
+  const can = editable() && date;
+  return `<td class="tutor ${dstart?"dstart":""} ${x.changed?TYPES[x.type]?.cls||"":""} ${can?"edit":""} ${isSel("tut",key)?"sel":""}" ${can?`data-tut="${key}"`:""}>${esc(x.t)}</td>`;
+}
+function cellTd(date,d,c,p,dstart,conf){
+  const x = cellAt(date,d,c,p);
+  const key = date ? `${date}|${c}|${p}` : `B|${d}|${c}|${p}`;
+  const cls = ["c"];
+  if (dstart) cls.push("dstart");
+  if (x?.changed && TYPES[x.type]?.cls) cls.push(TYPES[x.type].cls);
+  if (!x || (!x.s && !x.t)) cls.push("none");
+  if (editable()) cls.push("edit");
+  if (!S.exporting && S.sel.includes(key)) cls.push("sel");
+  if (!S.exporting && conf.has(key)) cls.push("conf");
+  let title = "";
+  if (x?.changed) title = `${TYPES[x.type]?.name||""}｜原：${x.os||"（無）"} ${x.ot||""}${x.note?`｜${x.note}`:""}`;
+  const inner = x && (x.s||x.t) ? `<div class="s">${esc(x.s)}</div><div class="t">${esc(x.t)}</div>` : "";
+  return `<td class="${cls.join(" ")}" ${editable()?`data-key="${key}"`:""} ${title?`title="${esc(title)}"`:""}>${inner}</td>`;
+}
+function itemTd(it, date, d, span, rowspan, dstart){
+  const sp = `${span>1?` colspan="${span}"`:""}${rowspan>1?` rowspan="${rowspan}"`:""}`;
+  const ds = dstart ? "dstart" : "";
+  if (it.kind==="hol") return `<td${sp} class="${ds} hol"><div>國定假日</div><div class="holn">${esc(it.text)}</div><div>停課</div></td>`;
+  if (it.kind==="lunch") return `<td${sp} class="${ds} lunch">午餐、午休</td>`;
+  if (it.kind==="text"){
+    const key = date ? `${date}|${it.field}` : `B|${d}|${it.field}`;
+    const can = editable();
+    return `<td${sp} class="dt ${ds} ${it.changed?"ty-event":""} ${can?"edit":""} ${isSel("text",key)?"sel":""}" ${can?`data-dt="${key}"`:""}>${esc(it.text)}</td>`;
+  }
+  // block
+  const key = `${date}|${it.idx}`; const can = editable() && date;
+  return `<td${sp} class="${ds} block ${TYPES[it.type]?.cls||""} ${can?"edit":""} ${isSel("blk",key)?"sel":""}" ${can?`data-blk="${key}"`:""}>${escBr(it.text)}</td>`;
+}
+
+/* ---------- 週課表 / 班級課表（共用） ---------- */
+function gridTable(dates, cols){
+  const week = cols.length===6;
+  const models = [0,1,2,3,4].map(d => dayModel(dates?dates[d]:null, d));
+  const conf = dates ? conflicts(dates, models) : new Set();
+  let h = `<table class="tt ${week?"tt-week":"tt-class"}"><thead><tr><th class="rh">${week?"星期":"節次"}</th>`;
+  for (let d=0;d<5;d++) h += `<th colspan="${cols.length}" class="dstart">${dayLabel(dates,d)}</th>`;
+  h += `</tr>`;
+  if (week){ h += `<tr><th class="rh">年級／節次</th>`; for (let d=0;d<5;d++) CN.forEach((n,c) => h += `<th class="${c===0?"dstart":""}">${n}<br>年級</th>`); h += `</tr>`; }
+  h += `</thead><tbody>`;
+  if (week){ h += `<tr><th class="rh">導師</th>`; for (let d=0;d<5;d++) for (let c=0;c<6;c++) h += tutorTd(dates?dates[d]:null, c, c===0); h += `</tr>`; }
+  for (let ri=0; ri<10; ri++){
+    h += `<tr>${rowHead(ROWS[ri])}`;
+    let skipDays = 0;
+    for (let d=0; d<5; d++){
+      if (skipDays>0){ skipDays--; continue; }
+      const M = models[d]; const date = dates ? dates[d] : null;
+      let j = 0;
+      while (j < cols.length){
+        const it = M.grid[ri][cols[j]];
+        let k = j; while (k+1<cols.length && M.grid[ri][cols[k+1]]===it) k++;
+        if (it.r0===ri){
+          let span = k-j+1;
+          if (it.kind==="cell") h += cellTd(date,d,it.c,it.p,j===0,conf);
+          else {
+            if (it.kind==="lunch" && span===cols.length){   // 連續幾天的午餐合併成一格
+              let e = d; while (e+1<5){ const n = models[e+1].grid[6]; if (cols.every(c => n[c]?.kind==="lunch" && n[c]===n[cols[0]])) e++; else break; }
+              span *= (e-d+1); skipDays = e-d;
+            }
+            h += itemTd(it, date, d, span, it.r1-it.r0+1, j===0);
+          }
+        }
+        j = k+1;
+      }
+    }
+    h += `</tr>`;
+  }
+  return h + `</tbody></table>`;
+}
+
+/* ---------- 個人課表 ---------- */
+function teacherTable(dates, who){
+  const models = [0,1,2,3,4].map(d => dayModel(dates[d], d));
+  const st = {total:0, inn:0, out:0};
+  let h = `<table class="tt tt-teacher"><thead><tr><th class="rh">節次</th>`;
+  for (let d=0;d<5;d++) h += `<th class="dstart">${dayLabel(dates,d)}</th>`;
+  h += `</tr></thead><tbody>`;
+  const full = it => it && it.c0===0 && it.c1===5 && it.kind!=="cell";
+  for (let ri=0; ri<10; ri++){
+    h += `<tr>${rowHead(ROWS[ri])}`;
+    let skipDays = 0;
+    for (let d=0; d<5; d++){
+      if (skipDays>0){ skipDays--; continue; }
+      const M = models[d]; const date = dates[d]; const row = M.grid[ri];
+      if (full(row[0]) && row.every(x => x===row[0])){
+        const it = row[0];
+        if (it.r0!==ri) continue;
+        let span = 1;
+        if (it.kind==="lunch"){ let e = d; while (e+1<5 && models[e+1].grid[6].every(x => x===models[e+1].grid[6][0] && x.kind==="lunch")) e++; span = e-d+1; skipDays = e-d; }
+        h += itemTd(it, null, d, span, it.r1-it.r0+1, true).replace(/ data-(dt|blk)="[^"]*"/,"").replace(" edit","");
+        continue;
+      }
+      if (ri===0 || ri===3 || ri===6){
+        const texts = [...new Set(row.filter(x => x.kind==="text").map(x => x.text))];
+        h += `<td class="dt dstart">${esc(texts.join("／"))}</td>`; continue;
+      }
+      const p = ROWS[ri]; let inner = "", ty = "";
+      for (let c=0;c<6;c++){
+        const it = row[c];
+        if (it.kind==="cell"){
+          const x = cellAt(date,d,c,p); if (!x) continue;
+          if (x.t===who){
+            st.total++; if (x.changed && x.ot!==who) st.inn++;
+            if (x.changed && TYPES[x.type]?.cls) ty = TYPES[x.type].cls;
+            inner += `<div class="it"><span class="cl">${CN[c]}年級</span> <span class="s">${esc(x.s)}</span>${x.changed&&x.ot&&x.ot!==who?`<div class="note">代 ${esc(x.ot)}</div>`:""}</div>`;
+          } else if (x.changed && x.ot===who){
+            st.out++; ty = ty || TYPES[x.type]?.cls || "";
+            inner += `<div class="lost">${CN[c]}年級 ${esc(x.os)} → ${esc(x.t||"（無）")}</div>`;
+          }
+        } else if (it.kind==="block"){
+          const b = baseCell(date,d,c,p);
+          if (b?.t===who) inner += `<div class="lost">${CN[c]}年級 ${esc(b.s)} → ${esc((it.text||"停課").replace(/\n/g," "))}</div>`;
+        }
+      }
+      h += `<td class="c dstart ${ty} ${inner?"":"none"}">${inner}</td>`;
+    }
+    h += `</tr>`;
+  }
+  return {html: h + `</tbody></table>`, st};
+}
+function legend(){
+  return `<div class="legend"><span class="sw" style="background:var(--event)"></span>粉紅色為學校行事、<span class="sw" style="background:var(--swap)"></span>藍色為教師協調代調課、<span class="sw" style="background:var(--sub)"></span>黃色為公假排代或自費代課</div>`;
+}
+function sheetHTML(){
+  const baseMode = S.editBase && S.view==="week";
+  const dates = baseMode ? null : weekDates(S.week);
+  const range = dates ? `${mmdd(dates[0])}-${mmdd(dates[4])}` : "";
+  const head = `${esc(S.settings.termName)}　${SCHOOL}`;
+  if (S.view==="week"){
+    const title = dates ? `${head}　W${S.week}　${range}班級總日課表` : `${head}　${esc(baseFor(null).name)}（自 ${md(baseFor(null).from)} 起）`;
+    return `<h2>${title}</h2>${legend()}${gridTable(dates,[0,1,2,3,4,5])}`;
+  }
+  if (S.view==="class"){
+    const tut = [...new Set(dates.map(dt => tutorAt(dt,S.cls).t))].join("／");
+    return `<h2>${head}　W${S.week}　${range}　${CN[S.cls]}年級課表（導師：${esc(tut)}）</h2>${legend()}${gridTable(dates,[S.cls])}`;
+  }
+  const {html, st} = teacherTable(dates, S.who);
+  return `<h2>${head}　W${S.week}　${range}　${esc(S.who)}老師個人課表</h2>${legend()}<div class="stats">本週授課 ${st.total} 節${st.inn?`（含代課 ${st.inn} 節）`:""}${st.out?`，原課由他人上 ${st.out} 節`:""}</div>${html}`;
+}
+
+/* ---------- views ---------- */
+function weekOptions(){
+  let o = "";
+  for (let w=1; w<=S.settings.weeks; w++){ const ds = weekDates(w); o += `<option value="${w}" ${w===S.week?"selected":""}>W${w}　${md(ds[0])}–${md(ds[4])}</option>`; }
+  return o;
+}
+function timetableView(){
+  const baseMode = S.editBase && S.view==="week";
+  let bar = `<div class="bar">`;
+  if (!baseMode) bar += `<button class="btn" data-act="prev" aria-label="上一週">◀</button><select id="weekSel">${weekOptions()}</select><button class="btn" data-act="next" aria-label="下一週">▶</button><button class="btn" data-act="today">本週</button>`;
+  if (S.view==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
+  if (S.view==="teacher") bar += `<select id="whoSel">${allTeachers().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  bar += `<span class="grow"></span><button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn" data-act="print">列印／存 PDF</button></div>`;
+  let pre = "";
+  if (S.admin && !DEMO && !S.basesInDb) pre += `<div class="banner">雲端還沒有課表資料，目前顯示的是內建資料。請到「設定」按「匯入既有週課表」。</div>`;
+  if (baseMode) pre += `<div class="banner">正在編輯「${esc(baseFor(null).name)}」（自 ${md(baseFor(null).from)} 起適用）：修改會套用到這段期間的每一週。完成後請到「設定」關閉。</div>`;
+  else if (S.admin && S.view!=="teacher") pre += `<div class="hint noprint" style="margin-bottom:8px">點格子編輯（可連續點多格，同一天的多格可合併成活動格）；點導師、晨間、大下課、活動格也能修改。紅框＝同一位老師同節排在兩班。</div>`;
+  return bar + pre + `<div class="scroll"><div id="sheet" class="${S.view==="week"?"":"fit"}">${sheetHTML()}</div></div>`;
+}
+function monthsInTerm(){
+  const out = []; const s = termStart(); const e = addDays(s, S.settings.weeks*7-1);
+  const d = pdate(s); d.setDate(1);
+  while (ymd(d) <= e){ out.push(ymd(d).slice(0,7)); d.setMonth(d.getMonth()+1); }
+  return out;
+}
+function checkRows(){
+  const rows = [];
+  Object.entries(S.days).forEach(([date,day]) => {
+    if (!date.startsWith(S.month)) return;
+    const M = dayModel(date, weekdayOf(date));
+    Object.entries(day.cells||{}).forEach(([k,ch]) => {
+      if (!S.ctypes.has(ch.type)) return;
+      const m = k.match(/^c(\d)p(\d)$/); if (!m) return;
+      const c = +m[1], p = +m[2];
+      if (M.grid[RI[p]][c]?.kind!=="cell") return;   // 被活動格蓋住的不算
+      rows.push({date, c, p, ...ch, hol:holidayName(date)});
+    });
+  });
+  rows.sort((a,b) => a.date.localeCompare(b.date) || a.p-b.p || a.c-b.c);
+  return rows;
+}
+function checkView(){
+  const months = monthsInTerm();
+  if (!S.month || !months.includes(S.month)) S.month = months.find(m => m===ymd(new Date()).slice(0,7)) || months[0];
+  const rows = checkRows();
+  const sum = {};
+  rows.filter(r => !r.hol).forEach(r => {
+    if (r.t && r.t!==r.ot) (sum[r.t] ||= {inn:0,out:0}).inn++;
+    if (r.ot && r.t!==r.ot) (sum[r.ot] ||= {inn:0,out:0}).out++;
+  });
+  let h = `<div class="bar"><label>月份 <select id="monthSel">${months.map(m=>`<option value="${m}" ${m===S.month?"selected":""}>${m.replace("-"," 年 ")} 月</option>`).join("")}</select></label>`;
+  Object.entries(TYPES).forEach(([k,t]) => h += `<label><input type="checkbox" data-ctype="${k}" ${S.ctypes.has(k)?"checked":""}> <span class="chip" style="background:${t.color}">${t.name}</span></label>`);
+  h += `<span class="grow"></span><button class="btn" data-act="csv">下載明細（Excel 可開）</button></div>`;
+  h += `<div class="grid2"><div class="card"><h3>異動明細（${rows.length} 筆）</h3>`;
+  if (!rows.length) h += `<p class="hint">這個月份沒有符合條件的異動。</p>`;
+  else {
+    h += `<table class="list"><thead><tr><th>日期</th><th>節</th><th>班級</th><th>類別</th><th>原課</th><th>異動後</th><th>備註</th></tr></thead><tbody>`;
+    rows.forEach(r => h += `<tr><td>W${weekOf(r.date)} ${md(r.date)}(${DAYN[weekdayOf(r.date)]||"?"})${r.hol?` <span class="chip">${esc(r.hol)}，不計</span>`:""}</td><td>${PNUM[r.p]}</td><td>${CN[r.c]}年級</td><td><span class="chip" style="background:${TYPES[r.type]?.color}">${TYPES[r.type]?.name||r.type}</span></td><td>${esc(r.os)} ${esc(r.ot)}</td><td><b>${esc(r.s)} ${esc(r.t)}</b></td><td>${esc(r.note)}</td></tr>`);
+    h += `</tbody></table>`;
+  }
+  h += `</div><div class="card"><h3>依老師統計</h3>`;
+  const names = Object.keys(sum).sort((a,b) => (sum[b].inn - sum[a].inn) || a.localeCompare(b,"zh-Hant"));
+  if (!names.length) h += `<p class="hint">無資料</p>`;
+  else {
+    h += `<table class="list"><thead><tr><th>老師</th><th>代入節數</th><th>原課被代節數</th></tr></thead><tbody>`;
+    names.forEach(n => h += `<tr><td>${esc(n)}</td><td class="num">${sum[n].inn}</td><td class="num">${sum[n].out}</td></tr>`);
+    h += `</tbody></table><p class="hint">只統計勾選的類別；國定假日與被活動格蓋住的節次不計入。</p>`;
+  }
+  return h + `</div></div>`;
+}
+function settingsView(){
+  const s = S.settings;
+  let h = `<div class="grid2"><div class="card"><h3>學期設定</h3>
+    <div class="holrow"><label>學期名稱 <input type="text" id="setTerm" value="${esc(s.termName)}"></label></div>
+    <div class="holrow"><label>W1 開學週週一 <input type="date" id="setStart" value="${esc(s.start)}"></label>
+    <label>週數 <input type="number" id="setWeeks" min="1" max="30" value="${s.weeks}" style="width:70px"></label></div>
+    <h3 style="margin-top:14px">國定假日（當天整天停課）</h3><div id="holList">`;
+  (s.holidays||[]).slice().sort((a,b)=>a.d.localeCompare(b.d)).forEach(x => h += `<div class="holrow"><input type="date" class="hd" value="${esc(x.d)}"><input type="text" class="hn" value="${esc(x.n)}" style="width:150px"><button class="btn warn" data-act="delhol" type="button">刪除</button></div>`);
+  h += `</div><button class="btn" data-act="addhol">＋ 新增假日</button>
+    <div class="row" style="margin-top:14px"><button class="btn pri" data-act="savesettings">儲存設定</button> <span class="hint" id="setMsg"></span></div></div>
+    <div class="card"><h3>基本課表版本</h3>
+    <p class="hint">每個版本從「起始日」開始適用，直到下一個版本。換課表時新增一個版本即可，舊週次不受影響。</p><div id="verList">`;
+  S.bases.forEach((b,i) => h += `<div class="holrow"><input type="text" class="vn" value="${esc(b.name)}" style="width:120px"><input type="date" class="vf" value="${esc(b.from)}"><button class="btn" data-act="editver" data-i="${i}">編輯課表</button>${S.bases.length>1?`<button class="btn warn" data-act="delver" data-i="${i}">刪除</button>`:""}</div>`);
+  h += `</div><div class="row"><button class="btn" data-act="addver">＋ 新增版本（複製最新版）</button><button class="btn pri" data-act="savever">儲存版本設定</button></div>`;
+  if (S.editBase) h += `<p><button class="btn warn" data-act="endbase">結束編輯基本課表</button></p>`;
+  h += `<h3 style="margin-top:16px">資料</h3>
+    <p class="hint">下載目前所有資料（設定、基本課表、每天的異動）成一個檔案，建議每月存一次。</p>
+    <div class="row"><button class="btn" data-act="backup">下載備份</button>${DEMO?"":`<button class="btn" data-act="seed">匯入既有週課表（W1–W11）</button>`}</div></div></div>`;
+  return h;
+}
+
+/* ---------- editor ---------- */
+function parseKey(k){
+  const a = k.split("|");
+  if (a[0]==="B") return {base:true, d:+a[1], c:+a[2], p:+a[3]};
+  return {date:a[0], d:weekdayOf(a[0]), c:+a[1], p:+a[2]};
+}
+function keyLabel(k){
+  const x = parseKey(k);
+  const cur = x.base ? baseFor(null).cells[`${x.d}-${x.c}-${x.p}`] : cellAt(x.date,x.d,x.c,x.p);
+  const when = x.base ? `(${DAYN[x.d]})` : `${md(x.date)}(${DAYN[x.d]})`;
+  return `${when} ${CN[x.c]}年級 第${PNUM[x.p]}節　${esc(cur?.s||"（空）")} ${esc(cur?.t||"")}`;
+}
+function typeRadios(cur, withNone){
+  const opts = Object.entries(TYPES).filter(([k]) => k!=="plain").map(([k,t]) => [k,t.name,t.color]);
+  opts.push(withNone ? ["", "不上色", "#fff"] : ["plain", "不上色（例如臨時代課）", "#fff"]);
+  return `<div class="types">${opts.map(([k,n,c]) => `<label><input type="radio" name="edType" value="${k}" ${k===cur?"checked":""}> <span class="sw" style="background:${c};margin:0"></span>${n}</label>`).join("")}</div>`;
+}
+const selType = () => document.querySelector('input[name=edType]:checked')?.value ?? "";
+function renderEditor(){
+  const ed = $("#editor");
+  const show = S.admin && (S.sel.length || S.other) && ["week","class"].includes(S.view);
+  if (!show){ ed.hidden = true; return; }
+  ed.hidden = false;
+  const tlist = `<datalist id="tlist">${allTeachers().map(t => `<option value="${esc(t)}">`).join("")}</datalist>`;
+  const o = S.other;
+  if (o?.kind==="text"){
+    const a = o.key.split("|"); const isBase = a[0]==="B";
+    const d = isBase ? +a[1] : weekdayOf(a[0]); const field = isBase ? a[2] : a[1];
+    const cur = dayText(isBase?null:a[0], d, field).text;
+    ed.innerHTML = `<h3>${field==="am"?"晨間":"大下課"}活動　${isBase?`(${DAYN[d]})`:`${md(a[0])}(${DAYN[d]})`}</h3>
+      <label>內容</label><input type="text" id="edText" value="${esc(cur)}">
+      <div class="row"><button class="btn pri" data-act="applytext">套用</button>${isBase?"":`<button class="btn" data-act="resettext">還原</button>`}<button class="btn" data-act="clearsel">取消</button></div>`;
+    return;
+  }
+  if (o?.kind==="tut"){
+    const [date,c] = o.key.split("|"); const x = tutorAt(date,+c);
+    ed.innerHTML = `<h3>${md(date)}(${DAYN[weekdayOf(date)]}) ${CN[+c]}年級 導師</h3>
+      <label>當天導師</label><input type="text" id="edT" list="tlist" value="${esc(x.t)}">${tlist}
+      <label>類別</label>${typeRadios(x.changed?x.type:"sub", false)}
+      <div class="row"><button class="btn pri" data-act="applytut">套用</button><button class="btn" data-act="resettut">還原</button><button class="btn" data-act="clearsel">取消</button></div>`;
+    return;
+  }
+  if (o?.kind==="blk"){
+    const [date,i] = o.key.split("|"); const b = dayBlocks(date, weekdayOf(date)).list[+i];
+    ed.innerHTML = `<h3>${md(date)}(${DAYN[weekdayOf(date)]}) 活動格</h3>
+      <div class="sel-list">${CN[b.c0]}${b.c1>b.c0?`～${CN[b.c1]}`:""}年級，${ROWS[b.r0]==="am"?"晨間":`第${PNUM[ROWS[b.r0]]||"?"}節`}～${typeof ROWS[b.r1]==="number"?`第${PNUM[ROWS[b.r1]]}節`:ROWS[b.r1]}</div>
+      <label>內容（可換行）</label><textarea id="edBlkText" rows="4">${esc(b.text)}</textarea>
+      <label>底色</label>${typeRadios(b.type||"", true)}
+      <div class="row"><button class="btn pri" data-act="applyblk">套用</button><button class="btn warn" data-act="delblk">刪除活動格</button>${S.days[date]?.blocks?`<button class="btn" data-act="resetblk">這天恢復原設定</button>`:""}<button class="btn" data-act="clearsel">取消</button></div>
+      <p class="hint">刪除後，原本被蓋住的格子會顯示出來，可再個別填課。</p>`;
+    return;
+  }
+  const keys = S.sel; const one = keys.length===1;
+  const isBase = parseKey(keys[0]).base;
+  const curs = keys.map(k => { const x = parseKey(k); return x.base ? baseFor(null).cells[`${x.d}-${x.c}-${x.p}`] : cellAt(x.date,x.d,x.c,x.p); });
+  const same = f => curs.every(c => (c?.[f]||"")===(curs[0]?.[f]||"")) ? (curs[0]?.[f]||"") : "";
+  const curType = (one && curs[0]?.changed) ? curs[0].type : "sub";
+  let h = `<h3>已選 ${keys.length} 格</h3><div class="sel-list">${keys.map(keyLabel).join("<br>")}</div>`;
+  if (!isBase) h += `<label>類別</label>${typeRadios(curType, false)}`;
+  h += `<label>科目</label><input type="text" id="edS" value="${esc(same("s"))}" placeholder="${one?"":"留空＝各格維持原科目"}">
+    <label>授課老師</label><input type="text" id="edT" list="tlist" value="${esc(same("t"))}" placeholder="${one?"":"留空＝各格維持原老師"}">${tlist}
+    <label style="display:flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" id="edClearT"> 這幾節沒有授課老師</label>`;
+  if (!isBase) h += `<label>備註（例如：公假研習、事假）</label><input type="text" id="edN" value="${esc(one?(curs[0]?.note||""):"")}">`;
+  h += `<div class="row"><button class="btn pri" data-act="apply">套用</button>`;
+  if (!isBase) h += `<button class="btn" data-act="swap" ${keys.length===2?"":"disabled"} title="選兩格後，把兩節課對調（標為藍色）">兩格互換</button><button class="btn" data-act="reset">還原原課表</button>`;
+  h += `<button class="btn" data-act="clearsel">取消選取</button></div>`;
+  if (!isBase){
+    const dates = [...new Set(keys.map(k => parseKey(k).date))];
+    if (dates.length===1) h += `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">合併成一個活動格（例如校外教學）</summary>
+      <label>活動內容（可換行）</label><textarea id="edBlkText" rows="2"></textarea>
+      <p class="hint">會把選取範圍的長方形（含中間的大下課）合併成一格，底色依上方「類別」。</p>
+      <button class="btn" data-act="mkblk">合併</button></details>`;
+    const c = new Set(); dates.forEach(date => { const ws = weekDates(weekOf(date)); conflicts(ws, ws.map((dt,d) => dayModel(dt,d))).forEach(k => c.add(k)); });
+    const bad = keys.filter(k => c.has(k));
+    if (bad.length) h += `<div class="warn">⚠ 有 ${bad.length} 格的老師同時段在別班也有課，請確認。</div>`;
+  }
+  ed.innerHTML = h;
+}
+function clearSel(){ S.sel = []; S.other = null; }
+async function applyEdit(){
+  const keys = S.sel; const multi = keys.length>1;
+  const s = $("#edS").value.trim(), t = $("#edT").value.trim(), clearT = $("#edClearT").checked;
+  if (parseKey(keys[0]).base){
+    const nb = structuredClone(S.bases); const B = nb[Math.min(S.baseIdx, nb.length-1)];
+    keys.forEach(k => { const x = parseKey(k); const id = `${x.d}-${x.c}-${x.p}`; const cur = B.cells[id]||{s:"",t:""};
+      const v = {s: (s||!multi) ? s : cur.s, t: clearT ? "" : (t||!multi) ? t : cur.t};
+      if (!v.s && !v.t) delete B.cells[id]; else B.cells[id] = v; });
+    clearSel(); await writeBases(nb); render(); return;
+  }
+  const type = selType() || "plain"; const note = $("#edN").value.trim();
+  const patches = {};
+  keys.forEach(k => {
+    const x = parseKey(k); const cur = cellAt(x.date,x.d,x.c,x.p); const b = baseCell(x.date,x.d,x.c,x.p);
+    ((patches[x.date] ||= {cells:{}}).cells)[`c${x.c}p${x.p}`] = { type,
+      s: (s||!multi) ? s : (cur?.s||""), t: clearT ? "" : (t||!multi) ? t : (cur?.t||""),
+      note: note || (multi ? (cur?.note||"") : ""), os: b?.s||"", ot: b?.t||"" };
+  });
+  clearSel();
+  await Promise.all(Object.entries(patches).map(([d,p]) => writeDay(d,p)));
+  render();
+}
+async function swapEdit(){
+  const [ka,kb] = S.sel; const a = parseKey(ka), b = parseKey(kb);
+  const ca = cellAt(a.date,a.d,a.c,a.p)||{s:"",t:""}, cb = cellAt(b.date,b.d,b.c,b.p)||{s:"",t:""};
+  const ba = baseCell(a.date,a.d,a.c,a.p), bb = baseCell(b.date,b.d,b.c,b.p);
+  const note = ($("#edN")?.value||"").trim();
+  const recA = {type:"swap", s:cb.s||"", t:cb.t||"", note, os:ba?.s||"", ot:ba?.t||""};
+  const recB = {type:"swap", s:ca.s||"", t:ca.t||"", note, os:bb?.s||"", ot:bb?.t||""};
+  clearSel();
+  if (a.date===b.date) await writeDay(a.date, {cells:{[`c${a.c}p${a.p}`]:recA, [`c${b.c}p${b.p}`]:recB}});
+  else { await writeDay(a.date,{cells:{[`c${a.c}p${a.p}`]:recA}}); await writeDay(b.date,{cells:{[`c${b.c}p${b.p}`]:recB}}); }
+  render();
+}
+async function resetEdit(){
+  const patches = {};
+  S.sel.forEach(k => { const x = parseKey(k); ((patches[x.date] ||= {cells:{}}).cells)[`c${x.c}p${x.p}`] = DEL; });
+  clearSel();
+  await Promise.all(Object.entries(patches).map(([d,p]) => writeDay(d,p)));
+  render();
+}
+async function applyText(reset){
+  const a = S.other.key.split("|"); const v = reset ? DEL : $("#edText").value.trim();
+  clearSel();
+  if (a[0]==="B"){ const nb = structuredClone(S.bases); nb[Math.min(S.baseIdx,nb.length-1)][a[2]][+a[1]] = v; await writeBases(nb); }
+  else await writeDay(a[0], {[a[1]]: v});
+  render();
+}
+async function applyTut(reset){
+  const [date,c] = S.other.key.split("|");
+  const v = reset ? DEL : {t:$("#edT").value.trim(), type:selType()||"plain"};
+  clearSel(); await writeDay(date, {tut:{[`c${c}`]: v}}); render();
+}
+async function editBlocks(date, fn){
+  const list = structuredClone(dayBlocks(date, weekdayOf(date)).list).map(b => { const {d, ...rest} = b; return rest; });
+  fn(list); clearSel(); await writeDay(date, {blocks:list}); render();
+}
+async function mkBlock(){
+  const ks = S.sel.map(parseKey); const date = ks[0].date;
+  const rows = ks.map(k => RI[k.p]), cols = ks.map(k => k.c);
+  const b = {c0:Math.min(...cols), c1:Math.max(...cols), r0:Math.min(...rows), r1:Math.max(...rows), text:$("#edBlkText").value.trim(), type: selType()==="plain" ? "" : selType()};
+  if (b.r0<6 && b.r1>6) { alert("活動格不能跨過午餐時間，請上午、下午分開合併。"); return; }
+  await editBlocks(date, list => list.push(b));
+}
+
+/* ---------- export ---------- */
+function fileBase(){
+  const w = `W${S.week}`;
+  if (S.view==="week") return S.editBase ? `${termShort()}_${baseFor(null).name}` : `${termShort()}_${w}_週課表`;
+  if (S.view==="class") return `${termShort()}_${w}_${CN[S.cls]}年級課表`;
+  return `${termShort()}_${w}_${S.who}課表`;
+}
+function download(blob, name){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function exportSheetHTML(){ S.exporting = true; try { return sheetHTML(); } finally { S.exporting = false; } }
+function offscreen(cls){
+  const holder = document.createElement("div");
+  holder.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff";
+  holder.innerHTML = `<div id="sheet" class="${cls}" style="display:inline-block;padding:16px;${cls?"width:1400px;":""}">${exportSheetHTML()}</div>`;
+  document.body.appendChild(holder); return holder;
+}
+async function exportPNG(){
+  const holder = offscreen("");
+  try{
+    const el = holder.firstElementChild;
+    const canvas = await html2canvas(el, {scale:2, backgroundColor:"#ffffff", windowWidth: el.scrollWidth+40});
+    canvas.toBlob(b => download(b, fileBase()+".png"));
+  } finally { holder.remove(); }
+}
+function loadScript(src){
+  return new Promise((res,rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("無法載入 Word 產生器，請確認網路")); document.head.appendChild(s); });
+}
+function rgbHex(c){
+  const m = c && c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+  if (!m || (m[4]!==undefined && +m[4]===0)) return null;
+  const h = [m[1],m[2],m[3]].map(x => (+x).toString(16).padStart(2,"0")).join("").toUpperCase();
+  return h==="FFFFFF" ? null : h;
+}
+async function exportDocx(){
+  if (!window.docx) await loadScript("https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js");
+  const D = window.docx;
+  const week = S.view==="week";
+  const k = week ? 0.82 : 0.9;
+  const hp = px => Math.max(10, Math.round(parseFloat(px)*0.75*k*2));
+  const holder = offscreen(week ? "" : "fit");
+  try{
+    const sheet = holder.firstElementChild;
+    const runsOf = (node, st) => {
+      const out = [];
+      node.childNodes.forEach(n => {
+        if (n.nodeType===3){ const tx = n.textContent.replace(/\s+/g," "); if (tx.trim()) out.push(new D.TextRun({text:tx, bold:st.bold, size:st.size, strike:st.strike, color:st.color})); }
+        else if (n.tagName==="BR") out.push(new D.TextRun({text:"", break:1}));
+        else if (n.nodeType===1){ const cs = getComputedStyle(n); out.push(...runsOf(n, {bold:+cs.fontWeight>=600, size:hp(cs.fontSize), strike:cs.textDecorationLine.includes("line-through"), color:rgbHex(cs.color)||undefined})); }
+      });
+      return out;
+    };
+    const paras = el => {
+      const cs = getComputedStyle(el);
+      const divs = [...el.children].filter(c => c.tagName==="DIV");
+      const blocks = divs.length ? divs : [el];
+      return blocks.map(b => { const bcs = b===el ? cs : getComputedStyle(b);
+        return new D.Paragraph({alignment:D.AlignmentType.CENTER, spacing:{before:0,after:0,line:240},
+          children: runsOf(b, {bold:+bcs.fontWeight>=600, size:hp(bcs.fontSize), strike:bcs.textDecorationLine.includes("line-through")})}); });
+    };
+    const table = sheet.querySelector("table");
+    const nCols = week ? 31 : 6;
+    const usable = 16838 - 2*567;
+    const first = week ? 1080 : 1250;
+    const colW = Array(nCols).fill(Math.floor((usable-first)/(nCols-1))); colW[0] = first;
+    const thin = {style:D.BorderStyle.SINGLE, size:4, color:"777777"};
+    const thick = {style:D.BorderStyle.SINGLE, size:16, color:"333333"};
+    const rows = [...table.rows].map((tr,ri) => new D.TableRow({cantSplit:true, height: (!week && ri>0) ? {value:640, rule:D.HeightRule.ATLEAST} : undefined, children:[...tr.cells].map(td => {
+      const cs = getComputedStyle(td); const bg = rgbHex(cs.backgroundColor);
+      return new D.TableCell({
+        children: paras(td), columnSpan: td.colSpan, rowSpan: td.rowSpan,
+        verticalAlign: D.VerticalAlign.CENTER, margins: {top:15, bottom:15, left:20, right:20},
+        shading: bg ? {type:D.ShadingType.CLEAR, color:"auto", fill:bg} : undefined,
+        borders: {top:thin, bottom:thin, right:thin, left: parseFloat(cs.borderLeftWidth)>2 ? thick : thin}
+      });
+    })}));
+    const title = sheet.querySelector("h2").textContent;
+    const legendRun = (fill, text) => [new D.TextRun({text:"　", shading:{type:D.ShadingType.CLEAR, color:"auto", fill}, size:18}), new D.TextRun({text, size:18})];
+    const children = [
+      new D.Paragraph({alignment:D.AlignmentType.CENTER, spacing:{after:40}, children:[new D.TextRun({text:title, bold:true, size:week?26:28})]}),
+      new D.Paragraph({alignment:D.AlignmentType.CENTER, spacing:{after:60}, children:[...legendRun("F9CFE0"," 粉紅色為學校行事　"), ...legendRun("BFDDF5"," 藍色為教師協調代調課　"), ...legendRun("FFFF00"," 黃色為公假排代或自費代課")]})
+    ];
+    const stats = sheet.querySelector(".stats");
+    if (stats) children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER, spacing:{after:60}, children:[new D.TextRun({text:stats.textContent, size:18})]}));
+    children.push(new D.Table({rows, columnWidths:colW, width:{size:usable, type:D.WidthType.DXA}, layout:D.TableLayoutType.FIXED}));
+    const font = {ascii:"Microsoft JhengHei", eastAsia:"Microsoft JhengHei", hAnsi:"Microsoft JhengHei", cs:"Microsoft JhengHei"};
+    const doc = new D.Document({ styles:{default:{document:{run:{font}}}},
+      sections:[{properties:{page:{size:{width:11906, height:16838, orientation:D.PageOrientation.LANDSCAPE}, margin:{top:567,bottom:567,left:567,right:567}}}, children}] });
+    download(await D.Packer.toBlob(doc), fileBase()+".docx");
+  } finally { holder.remove(); }
+}
+function exportCSV(){
+  const rows = checkRows();
+  const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
+  let csv = "週次,日期,星期,節次,班級,類別,原科目,原老師,異動後科目,異動後老師,備註,是否國定假日\n";
+  rows.forEach(r => csv += [`W${weekOf(r.date)}`, r.date, DAYN[weekdayOf(r.date)], PNUM[r.p], CN[r.c]+"年級", TYPES[r.type]?.name, r.os, r.ot, r.s, r.t, r.note, r.hol?`是（${r.hol}）`:""].map(q).join(",") + "\n");
+  download(new Blob(["﻿"+csv], {type:"text/csv"}), `${termShort()}_${S.month}_代調課明細.csv`);
+}
+function exportBackup(){
+  download(new Blob([JSON.stringify({settings:S.settings, bases:S.bases, days:S.days}, null, 1)], {type:"application/json"}), `課表備份_${ymd(new Date())}.json`);
+}
+
+/* ---------- render & routing ---------- */
+function writeHash(){
+  const p = new URLSearchParams({v:S.view, w:S.week});
+  if (S.view==="class") p.set("c", S.cls);
+  if (S.view==="teacher") p.set("t", S.who);
+  history.replaceState(null, "", location.pathname + location.search + "#" + p.toString());
+}
+function readHash(){
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.get("v")) S.view = p.get("v");
+  if (p.get("w")) S.week = +p.get("w") || S.week;
+  if (p.get("c")) S.cls = +p.get("c") || 0;
+  if (p.get("t")) S.who = p.get("t");
+}
+function render(){
+  if (!["week","class","teacher","check","settings"].includes(S.view)) S.view = "week";
+  if (!S.admin && ["check","settings"].includes(S.view)) S.view = "week";
+  if (!S.admin) { clearSel(); S.editBase = false; }
+  S.week = Math.min(Math.max(S.week,1), S.settings.weeks);
+  const ts = allTeachers(); if (!ts.includes(S.who)) S.who = ts[0];
+  $("#termLbl").textContent = S.settings.termName;
+  $("#loginBtn").textContent = S.admin ? "登出後台" : "後台登入";
+  const tabs = [["week","全校週課表"],["class","班級課表"],["teacher","個人課表"]];
+  if (S.admin) tabs.push(["check","核對節次"],["settings","設定"]);
+  $("#tabs").innerHTML = tabs.map(([k,n]) => `<button class="${k===S.view?"on":""} ${["check","settings"].includes(k)?"adm":""}" data-tab="${k}">${n}</button>`).join("");
+  const sx = document.querySelector(".scroll")?.scrollLeft || 0;
+  $("#main").innerHTML = S.view==="check" ? checkView() : S.view==="settings" ? settingsView() : timetableView();
+  const sc = document.querySelector(".scroll"); if (sc) sc.scrollLeft = sx;
+  renderEditor();
+  writeHash();
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", async e => {
+  const tab = e.target.closest("[data-tab]");
+  if (tab){ S.view = tab.dataset.tab; S.other = null; render(); return; }
+  if (S.admin){
+    const td = e.target.closest("td[data-key]");
+    if (td){
+      const k = td.dataset.key; S.other = null;
+      if (S.sel.length && S.sel[0].startsWith("B|")!==k.startsWith("B|")) S.sel = [];
+      S.sel = S.sel.includes(k) ? S.sel.filter(x => x!==k) : [...S.sel, k];
+      render(); return;
+    }
+    for (const [attr,kind] of [["data-dt","text"],["data-blk","blk"],["data-tut","tut"]]){
+      const el = e.target.closest(`td[${attr}]`);
+      if (el){ const key = el.getAttribute(attr); S.sel = []; S.other = (S.other?.kind===kind && S.other.key===key) ? null : {kind,key}; render(); return; }
+    }
+  }
+  const btn = e.target.closest("[data-act]"); if (!btn) return;
+  const act = btn.dataset.act;
+  try{
+    switch(act){
+      case "prev": S.week--; render(); break;
+      case "next": S.week++; render(); break;
+      case "today": S.week = currentWeek(); render(); break;
+      case "png": await exportPNG(); break;
+      case "doc": await exportDocx(); break;
+      case "print": window.print(); break;
+      case "csv": exportCSV(); break;
+      case "backup": exportBackup(); break;
+      case "seed": await importSeed(); break;
+      case "apply": await applyEdit(); break;
+      case "swap": await swapEdit(); break;
+      case "reset": await resetEdit(); break;
+      case "clearsel": clearSel(); render(); break;
+      case "applytext": await applyText(false); break;
+      case "resettext": await applyText(true); break;
+      case "applytut": await applyTut(false); break;
+      case "resettut": await applyTut(true); break;
+      case "mkblk": await mkBlock(); break;
+      case "applyblk": { const [date,i] = S.other.key.split("|"); const text = $("#edBlkText").value.trim(), type = selType();
+        await editBlocks(date, l => { l[+i].text = text; l[+i].type = type; }); break; }
+      case "delblk": { const [date,i] = S.other.key.split("|"); await editBlocks(date, l => l.splice(+i,1)); break; }
+      case "resetblk": { const [date] = S.other.key.split("|"); clearSel(); await writeDay(date, {blocks:DEL}); render(); break; }
+      case "addhol": {
+        const div = document.createElement("div"); div.className = "holrow";
+        div.innerHTML = `<input type="date" class="hd"><input type="text" class="hn" placeholder="假日名稱" style="width:150px"><button class="btn warn" data-act="delhol" type="button">刪除</button>`;
+        $("#holList").appendChild(div); break; }
+      case "delhol": btn.closest(".holrow").remove(); break;
+      case "savesettings": {
+        const hol = [...document.querySelectorAll("#holList .holrow")].map(r => ({d:r.querySelector(".hd").value, n:r.querySelector(".hn").value.trim()||"國定假日"})).filter(x => x.d);
+        const obj = {termName:$("#setTerm").value.trim()||S.settings.termName, start:$("#setStart").value||S.settings.start,
+                     weeks:Math.min(Math.max(+$("#setWeeks").value||20,1),30), holidays:hol};
+        await writeSettings(obj); S.settings = obj; render(); $("#setMsg").textContent = "已儲存"; break; }
+      case "addver": {
+        const nb = structuredClone(S.bases); const last = structuredClone(nb[nb.length-1]);
+        last.name = `課表版本${nb.length+1}`; last.from = weekDates(currentWeek())[0];
+        nb.push(last); await writeBases(nb); render(); break; }
+      case "delver": { if (!confirm("確定刪除這個課表版本？")) break; const nb = structuredClone(S.bases); nb.splice(+btn.dataset.i,1); S.baseIdx = 0; await writeBases(nb); render(); break; }
+      case "savever": {
+        const nb = structuredClone(S.bases);
+        document.querySelectorAll("#verList .holrow").forEach((r,i) => { nb[i].name = r.querySelector(".vn").value.trim()||nb[i].name; nb[i].from = r.querySelector(".vf").value||nb[i].from; });
+        nb.sort((a,b) => a.from.localeCompare(b.from)); await writeBases(nb); render(); break; }
+      case "editver": S.baseIdx = +btn.dataset.i; S.editBase = true; S.view = "week"; clearSel(); render(); break;
+      case "endbase": S.editBase = false; clearSel(); render(); break;
+    }
+  } catch(err){ console.error(err); alert("儲存失敗：" + (err.message||err)); }
+});
+document.addEventListener("change", e => {
+  if (e.target.id==="weekSel"){ S.week = +e.target.value; render(); }
+  else if (e.target.id==="clsSel"){ S.cls = +e.target.value; render(); }
+  else if (e.target.id==="whoSel"){ S.who = e.target.value; try{ localStorage.setItem("tt-who", S.who); }catch(_){} render(); }
+  else if (e.target.id==="monthSel"){ S.month = e.target.value; render(); }
+  else if (e.target.dataset.ctype){ const k = e.target.dataset.ctype; e.target.checked ? S.ctypes.add(k) : S.ctypes.delete(k); render(); }
+});
+$("#loginBtn").addEventListener("click", async () => {
+  if (S.admin){ if (DEMO){ S.admin = false; render(); } else await fb.signOut(fb.auth); return; }
+  $("#loginErr").textContent = DEMO ? "示範模式密碼：demo" : ""; $("#pw").value = ""; $("#loginDlg").showModal(); $("#pw").focus();
+});
+$("#loginCancel").addEventListener("click", () => $("#loginDlg").close());
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault(); const pw = $("#pw").value;
+  if (DEMO){ if (pw==="demo"){ S.admin = true; $("#loginDlg").close(); render(); } else $("#loginErr").textContent = "密碼錯誤（示範模式密碼：demo）"; return; }
+  try{ await fb.signIn(fb.auth, ADMIN_EMAIL, pw); $("#loginDlg").close(); }
+  catch(err){ $("#loginErr").textContent = "密碼錯誤或尚未設定後台帳號"; }
+});
+window.addEventListener("hashchange", () => { readHash(); render(); });
+
+/* ---------- start ---------- */
+(async () => {
+  try{ S.who = localStorage.getItem("tt-who") || ""; }catch(_){}
+  try{ await initData(); } catch(err){ console.error(err); alert("無法連線到資料庫，請稍後再試。"); }
+  S.week = currentWeek();
+  readHash();
+  render();
+})();
+
+</script>
+</body>
+</html>

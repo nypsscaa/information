@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鳥嶼國小 115學年度教科書選用系統</title>
+  
+  <!-- 載入 Tailwind CSS (排版樣式) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 載入 React 核心套件 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- 載入 Babel (讓瀏覽器看得懂 React 語法) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- 載入 HTML 轉 PDF 套件 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <a href="../" style="display:inline-block;margin:10px 16px 0;color:#1f5f8b;text-decoration:none;font-size:14px">← 教務組首頁</a>
+  
+  <!-- React 系統的渲染容器 -->
+  <div id="root"></div>
+
+  <!-- 主要程式碼邏輯 -->
+  <script type="text/babel" data-type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // ==========================================
+    // ⚠️ 專屬 Firebase 設定 (已帶入您的專屬金鑰) ⚠️
+    // ==========================================
+    const myCustomFirebaseConfig = {
+      apiKey: "AIzaSyAEkxli5TVmOsRbiEskRhz_-sHYOXYNVPE",
+      authDomain: "textbook-cf439.firebaseapp.com",
+      projectId: "textbook-cf439",
+      storageBucket: "textbook-cf439.firebasestorage.app",
+      messagingSenderId: "386837296808",
+      appId: "1:386837296808:web:a7cdcf7687c0ff4342349d",
+      measurementId: "G-W90T5YP2M2"
+    };
+
+    const firebaseConfig = typeof __firebase_config !== 'undefined' 
+      ? JSON.parse(__firebase_config) 
+      : myCustomFirebaseConfig;
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'textbook-app-custom';
+
+    const { useState, useEffect, useMemo } = React;
+
+    // ==========================================
+    // --- 系統總設定區 (以後換學期或換時間，只需修改這裡) ---
+    // ==========================================
+    const SCHOOL_NAME = "澎湖縣白沙鄉鳥嶼國民小學";
+    const ACADEMIC_YEAR = "115";           // 目前學年度 (顯示於標題)
+    const PREV_ACADEMIC_YEAR = "114";      // 舊學年度 (用來帶入沿用版本)
+    const CONVENER = "王雅嫺校長";           // 召集人姓名
+    const MEETING_DATE = "115年5月9日";    // 統一會議日期 (若留空 "" 則會自動抓老師填表當天的日期)
+    
+    // ★ 管理員專屬密碼 (修改分配表需要輸入此密碼)
+    // 管理員密碼不再寫在網頁裡：改用教務組後台密碼（Firebase 驗證），與課表系統共用
+    const ADMIN_EMAIL = "jiaowu@textbook-cf439.web.app";
+    // ==========================================
+
+    const PUBLISHERS = ["康軒", "翰林", "南一"];
+    const GRADES = ["一年級", "二年級", "三年級", "四年級", "五年級", "六年級"];
+
+    const SUBJECTS_LOW = [
+      "語文領域國語文", "數學領域", "生活課程", "健康與體育領域", "彈性課程望潮英創客"
+    ];
+
+    const SUBJECTS_HIGH = [
+      "語文領域國語文", "語文領域英語文", "數學領域", "自然科學領域", "社會領域", "藝術領域", "綜合活動領域", "健康與體育領域"
+    ];
+
+    // ★ 已將三年級數學修改為康軒
+    const PREV_VERSIONS = {
+      "一年級_語文領域國語文": "康軒", "二年級_語文領域國語文": "南一", "三年級_語文領域國語文": "康軒", "四年級_語文領域國語文": "康軒", "五年級_語文領域國語文": "康軒", "六年級_語文領域國語文": "康軒",
+      "三年級_語文領域英語文": "康軒", "四年級_語文領域英語文": "康軒", "五年級_語文領域英語文": "康軒", "六年級_語文領域英語文": "翰林",
+      "一年級_數學領域": "翰林", "二年級_數學領域": "翰林", "三年級_數學領域": "康軒", "四年級_數學領域": "康軒", "五年級_數學領域": "康軒", "六年級_數學領域": "康軒",
+      "一年級_生活課程": "翰林", "二年級_生活課程": "翰林",
+      "三年級_自然科學領域": "南一", "四年級_自然科學領域": "南一", "五年級_自然科學領域": "南一", "六年級_自然科學領域": "康軒",
+      "三年級_社會領域": "康軒", "四年級_社會領域": "康軒", "五年級_社會領域": "康軒", "六年級_社會領域": "康軒",
+      "三年級_藝術領域": "康軒", "四年級_藝術領域": "康軒", "五年級_藝術領域": "康軒", "六年級_藝術領域": "康軒",
+      "三年級_綜合活動領域": "翰林", "四年級_綜合活動領域": "翰林", "五年級_綜合活動領域": "翰林", "六年級_綜合活動領域": "康軒",
+      "一年級_健康與體育領域": "康軒", "二年級_健康與體育領域": "康軒", "三年級_健康與體育領域": "康軒", "四年級_健康與體育領域": "康軒", "五年級_健康與體育領域": "康軒", "六年級_健康與體育領域": "康軒",
+      "一年級_彈性課程望潮英創客": "翰林", "二年級_彈性課程望潮英創客": "翰林",
+    };
+
+    // 預設的教師分配表
+    const DEFAULT_TEACHER_ALLOCATION = {
+      "一年級": { "語文領域國語文": "王柔棉、夏先霓", "數學領域": "王柔棉、夏先霓", "生活課程": "許志宏、陳彥芃", "健康與體育領域": "許志宏、鄧嘉瑋", "彈性課程望潮英創客": "王柔棉、夏先霓" },
+      "二年級": { "語文領域國語文": "夏先霓、王柔棉", "數學領域": "夏先霓、王柔棉", "生活課程": "李一蓁、陳彥芃", "健康與體育領域": "許志宏、鄧嘉瑋", "彈性課程望潮英創客": "夏先霓、王柔棉" },
+      "三年級": { "語文領域國語文": "魏妤珊、楊士頡", "數學領域": "魏妤珊、楊士頡", "語文領域英語文": "李一蓁", "自然科學領域": "許志宏、鄧嘉瑋", "社會領域": "陳彥芃、郭庭安", "藝術領域": "王柔棉、陳彥芃", "綜合活動領域": "魏妤珊、陳彥芃", "健康與體育領域": "許志宏、鄧嘉瑋" },
+      "四年級": { "語文領域國語文": "楊士頡、魏妤珊", "數學領域": "楊士頡、魏妤珊", "語文領域英語文": "楊士頡", "自然科學領域": "許志宏、鄧嘉瑋", "社會領域": "陳彥芃、郭庭安", "藝術領域": "王柔棉、陳彥芃", "綜合活動領域": "陳彥芃、許志宏", "健康與體育領域": "許志宏、鄧嘉瑋" },
+      "五年級": { "語文領域國語文": "黃思寧、徐貴香", "數學領域": "黃思寧、徐貴香", "語文領域英語文": "李一蓁", "自然科學領域": "歐陽正、鄧嘉瑋", "社會領域": "郭庭安、許志宏", "藝術領域": "黃思寧", "綜合活動領域": "陳彥芃、許志宏", "健康與體育領域": "許志宏、鄧嘉瑋" },
+      "六年級": { "語文領域國語文": "徐貴香、黃思寧", "數學領域": "徐貴香、黃思寧", "語文領域英語文": "李一蓁", "自然科學領域": "歐陽正、許志宏", "社會領域": "郭庭安、許志宏", "藝術領域": "王柔棉、徐貴香", "綜合活動領域": "陳彥芃、許志宏", "健康與體育領域": "許志宏、鄧嘉瑋" }
+    };
+
+    const CRITERIA = [
+      "教學目標符合課程標準與教學原理。", "教材生活化，以學生生活經驗編寫。", "內容符合潮流，具多元文化客觀性。",
+      "教學設計模式能靈活運用教學方法。", "教學活動能激發學生參與、積極學習。", "教材內容的難易度適切。",
+      "教學活動能顧及學生個別差異。", "教學評量方式多元且易於實施。", "各學科之間的配合聯繫適切。",
+      "提供各種教學資源、補充教材及媒體。", "圖畫活潑、生活化，符合教學目標。", "文字敘述的流暢性與理解性。",
+      "教學指引與習作內容規劃適當。", "版面設計之佈局均衡、調和及美觀。", "印刷品質良好，裝訂牢固具安全性。"
+    ];
+
+    // --- 圖示元件 ---
+    const IconUsers = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
+    const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+    const IconList = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>;
+    const IconFileText = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>;
+    const IconSave = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>;
+    const IconDownload = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
+    const IconPrinter = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>;
+    const IconEdit = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>;
+    const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>;
+    const IconShare = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>;
+    const IconPdf = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M16 13H8"></path><path d="M16 17H8"></path><path d="M10 9H8"></path></svg>;
+    const IconLock = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
+    const IconUnlock = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>;
+    const IconCheckSquare = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>;
+    const IconCheckCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+    const IconXCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>;
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('form'); 
+      const [printRecord, setPrintRecord] = useState(null);
+      const [toast, setToast] = useState(null);
+      const [user, setUser] = useState(null);
+      const [isSaving, setIsSaving] = useState(false);
+      const [showShareModal, setShowShareModal] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      
+      const [isAdmin, setIsAdmin] = useState(false);
+      // 已用教務組後台密碼登入（例如剛從課表後台過來）→ 自動解鎖
+      useEffect(() => { setIsAdmin(!!user && user.email === ADMIN_EMAIL); }, [user]);
+      const [isEditingTable, setIsEditingTable] = useState(false);
+
+      const [selectedTeacherForChecklist, setSelectedTeacherForChecklist] = useState("");
+
+      const [allocationData, setAllocationData] = useState(() => {
+        const saved = localStorage.getItem('bird_island_allocation');
+        if (saved) {
+          try { return JSON.parse(saved); } catch(e) {}
+        }
+        return DEFAULT_TEACHER_ALLOCATION;
+      });
+
+      const [records, setRecords] = useState(() => {
+        const saved = localStorage.getItem('bird_island_textbook_records');
+        if (saved) {
+          try { return JSON.parse(saved); } catch(e) { return []; }
+        }
+        return [];
+      });
+
+      const [formData, setFormData] = useState(getInitialFormData());
+      const [availableSubjects, setAvailableSubjects] = useState([]);
+
+      function getInitialFormData() {
+        const initialScores = Array(CRITERIA.length).fill(null).map(() => Array(PUBLISHERS.length).fill(5));
+        return {
+          grade: "", subject: "", reviewers: "", decision: "keep", changedPublisher: "", seriesName: "", reason: "", scores: initialScores
+        };
+      }
+
+      useEffect(() => {
+        localStorage.setItem('bird_island_textbook_records', JSON.stringify(records));
+      }, [records]);
+
+      useEffect(() => {
+        localStorage.setItem('bird_island_allocation', JSON.stringify(allocationData));
+      }, [allocationData]);
+
+      useEffect(() => {
+        const initAuth = async () => {
+          try {
+            // 教務組網站：若已用後台帳號登入（例如剛從課表後台過來），就不要改成匿名身分
+            await auth.authStateReady();
+            if (!auth.currentUser) await signInAnonymously(auth);
+          } catch (error) {
+            console.error("Firebase 登入失敗", error);
+          }
+        };
+        initAuth();
+        const unsubscribe = onAuthStateChanged(auth, setUser);
+        return () => unsubscribe();
+      }, []);
+
+      useEffect(() => {
+        if (!user) return; 
+        try {
+          if (Object.keys(firebaseConfig).length === 0) return;
+          
+          const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'textbookReviews');
+          const unsubscribeRecords = onSnapshot(colRef, (snapshot) => {
+            const fetchedRecords = snapshot.docs.map(doc => {
+              const data = doc.data();
+              let parsedScores = data.scores;
+              if (typeof data.scores === 'string') {
+                try { parsedScores = JSON.parse(data.scores); } catch (e) {}
+              }
+              return { id: doc.id, ...data, scores: parsedScores };
+            });
+            fetchedRecords.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            setRecords(fetchedRecords);
+          }, (error) => console.error("雲端資料讀取失敗", error));
+
+          const allocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'allocationTable');
+          const unsubscribeAlloc = onSnapshot(allocRef, (docSnap) => {
+            if (docSnap.exists()) {
+              setAllocationData(docSnap.data().data);
+            }
+          }, (error) => console.error("雲端分配表讀取失敗", error));
+
+          return () => { unsubscribeRecords(); unsubscribeAlloc(); };
+        } catch(err) {
+          console.error("Firebase未正確設定", err);
+        }
+      }, [user]);
+
+      useEffect(() => {
+        if (formData.grade) {
+          setAvailableSubjects(formData.grade === "一年級" || formData.grade === "二年級" ? SUBJECTS_LOW : SUBJECTS_HIGH);
+        } else {
+          setAvailableSubjects([]);
+        }
+      }, [formData.grade]);
+
+      useEffect(() => {
+        if (formData.grade && formData.subject && !editingId) {
+          setFormData(prev => ({ ...prev, reviewers: allocationData[formData.grade]?.[formData.subject] || "", seriesName: "" }));
+        }
+      }, [formData.grade, formData.subject, editingId, allocationData]);
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3000);
+      };
+
+      const copyToClipboard = () => {
+        const url = window.location.href;
+        const textField = document.createElement('textarea');
+        textField.innerText = url;
+        document.body.appendChild(textField);
+        textField.select();
+        document.execCommand('copy');
+        textField.remove();
+        showToast("系統網址已複製！");
+      };
+
+      const getPrevVersion = (grade, subject) => PREV_VERSIONS[`${grade}_${subject}`] || "無資料";
+
+      const handleScoreChange = (cIdx, pIdx, value) => {
+        const newScores = [...formData.scores];
+        newScores[cIdx] = [...newScores[cIdx]];
+        newScores[cIdx][pIdx] = parseInt(value, 10);
+        setFormData({ ...formData, scores: newScores });
+      };
+
+      const calculateTotal = (scores, pIdx) => scores.reduce((sum, row) => sum + (row[pIdx] || 0), 0);
+
+      const calculateRanks = (scores) => {
+        const totals = PUBLISHERS.map((_, idx) => calculateTotal(scores, idx));
+        const sortedTotals = [...totals].sort((a, b) => b - a);
+        return totals.map(t => sortedTotals.indexOf(t) + 1);
+      };
+
+      const isEnglishSubject = formData.subject === "語文領域英語文" || formData.subject === "彈性課程望潮英創客";
+
+      const allTeachersList = useMemo(() => {
+        const teacherSet = new Set();
+        Object.values(allocationData).forEach(gradeObj => {
+          Object.values(gradeObj).forEach(names => {
+            if(names) {
+              names.split(/、|,/).forEach(name => {
+                const trimmed = name.trim();
+                if(trimmed) teacherSet.add(trimmed);
+              });
+            }
+          });
+        });
+        return Array.from(teacherSet).sort();
+      }, [allocationData]);
+
+      const teacherTasks = useMemo(() => {
+        if (!selectedTeacherForChecklist) return [];
+        const tasks = [];
+        Object.entries(allocationData).forEach(([grade, gradeObj]) => {
+          Object.entries(gradeObj).forEach(([subject, names]) => {
+            if (names && names.includes(selectedTeacherForChecklist)) {
+              const isCompleted = records.some(r => r.grade === grade && r.subject === subject);
+              tasks.push({ grade, subject, isCompleted, reviewers: names });
+            }
+          });
+        });
+        return tasks.sort((a, b) => (a.isCompleted === b.isCompleted ? 0 : a.isCompleted ? 1 : -1));
+      }, [selectedTeacherForChecklist, allocationData, records]);
+
+      const handleAdminToggle = async () => {
+        if (isAdmin) {
+          setIsEditingTable(false);
+          await signOut(auth);
+          await signInAnonymously(auth);
+          showToast("已鎖定並登出管理員模式");
+        } else {
+          const pwd = window.prompt("請輸入教務組後台密碼：");
+          if (pwd === null) return;
+          try {
+            await signInWithEmailAndPassword(auth, ADMIN_EMAIL, pwd);
+            showToast("密碼正確！已解鎖管理權限");
+          } catch (err) {
+            alert("密碼錯誤，拒絕存取！");
+          }
+        }
+      };
+
+      const handleAllocationChange = (grade, subject, value) => {
+        setAllocationData(prev => ({
+          ...prev,
+          [grade]: {
+            ...prev[grade],
+            [subject]: value
+          }
+        }));
+      };
+
+      const saveAllocationTable = async () => {
+        try {
+          if (user && Object.keys(firebaseConfig).length > 0) {
+            const allocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'allocationTable');
+            await updateDoc(allocRef, { data: allocationData }).catch(async (e) => {
+              await setDoc(allocRef, { data: allocationData });
+            });
+            showToast("分配表已成功同步至雲端！");
+          } else {
+            showToast("分配表已儲存至本機！");
+          }
+          setIsEditingTable(false);
+        } catch (error) {
+          console.error("分配表儲存失敗", error);
+          showToast("儲存失敗，請檢查網路連線");
+        }
+      };
+
+      const handleSubmit = async () => {
+        if (!formData.grade || !formData.subject) return showToast("請選擇年級與科目！");
+        if (formData.decision === 'change' && (!formData.changedPublisher || !formData.reason)) return showToast("若選擇改用，請選擇新版本並填寫原因！");
+        if (isEnglishSubject && !formData.seriesName.trim()) return showToast("請填寫英語教材特定系列名稱（例如：Hooray）！");
+
+        const prevVersion = getPrevVersion(formData.grade, formData.subject);
+        let finalPublisher = formData.decision === 'keep' ? prevVersion : formData.changedPublisher;
+        if (isEnglishSubject && formData.seriesName.trim()) finalPublisher += ` - ${formData.seriesName.trim()}`;
+        
+        const d = new Date();
+        const autoTwDate = `${d.getFullYear() - 1911}年${d.getMonth() + 1}月${d.getDate()}日`;
+        const submitDate = MEETING_DATE !== "" ? MEETING_DATE : autoTwDate;
+
+        const { scores, ...otherFormData } = formData;
+        const baseData = {
+          ...otherFormData,
+          date: submitDate,
+          prevVersion,
+          finalPublisher,
+          timestamp: Date.now()
+        };
+
+        const firestoreData = { ...baseData, scores: JSON.stringify(scores) };
+        const localData = { ...baseData, scores: scores };
+
+        setIsSaving(true);
+        try {
+          if (user && Object.keys(firebaseConfig).length > 0) {
+            if (editingId) {
+              const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'textbookReviews', editingId);
+              await updateDoc(docRef, firestoreData);
+              showToast("紀錄表已成功更新！");
+            } else {
+              const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'textbookReviews');
+              await addDoc(colRef, firestoreData);
+              showToast("紀錄表已成功新增至雲端！");
+            }
+          } else {
+            if (editingId) {
+               setRecords(records.map(r => r.id === editingId ? { ...localData, id: editingId } : r));
+               showToast("已更新至本機備份 (未連線雲端)");
+            } else {
+               setRecords([{ ...localData, id: Date.now() }, ...records]);
+               showToast("已存入本機備份 (未連線雲端)");
+            }
+          }
+          
+          setFormData(getInitialFormData());
+          setEditingId(null);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setActiveTab('list');
+        } catch (error) {
+          console.error("儲存失敗", error);
+          showToast("儲存失敗，已暫存至瀏覽器！");
+        }
+        setIsSaving(false);
+      };
+
+      const handleEdit = (record) => {
+        setFormData({
+          grade: record.grade,
+          subject: record.subject,
+          reviewers: record.reviewers,
+          decision: record.decision,
+          changedPublisher: record.changedPublisher || "",
+          seriesName: record.seriesName || "",
+          reason: record.reason || "",
+          scores: record.scores
+        });
+        setEditingId(record.id);
+        setActiveTab('form');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const handleDelete = async (id) => {
+        if (window.confirm("確定要刪除這筆紀錄嗎？這會從雲端永久移除！")) {
+          try {
+            if (user && Object.keys(firebaseConfig).length > 0) {
+              await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'textbookReviews', id));
+              showToast("已從雲端刪除！");
+            } else {
+              setRecords(records.filter(r => r.id !== id));
+              showToast("已從本機移除！");
+            }
+          } catch (error) {
+            console.error("刪除失敗", error);
+          }
+        }
+      };
+
+      const handlePrint = (record) => {
+        setPrintRecord(record);
+        setActiveTab('print');
+        setTimeout(() => window.print(), 500);
+      };
+
+      // ★ 放棄 html2pdf 實體掛載法，改用最穩定的字串直接轉換法
+      const exportToPDF = (record) => {
+        showToast("PDF 產生中，請稍候...");
+        const totals = PUBLISHERS.map((_, i) => calculateTotal(record.scores, i));
+        const ranks = calculateRanks(record.scores);
+        const keepText = record.decision === 'keep' ? (record.seriesName ? `${record.prevVersion}-${record.seriesName}` : record.prevVersion) : '';
+        const changeText = record.decision === 'change' ? (record.seriesName ? `${record.changedPublisher}-${record.seriesName}` : record.changedPublisher) : '';
+
+        // 不再掛載到 document，直接使用純字串交給 html2pdf 引擎
+        const htmlString = `
+          <div style="font-family: '標楷體', 'DFKai-SB', serif; color: black; font-size: 16px; line-height: 1.8; padding: 40px; box-sizing: border-box; background: white;">
+            <!-- 第一頁：審查紀錄表 -->
+            <div style="font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 25px; letter-spacing: 2px;">
+              ${SCHOOL_NAME}${ACADEMIC_YEAR}學年度${record.grade}${record.subject}教科書審查紀錄表
+            </div>
+            
+            <div style="margin-bottom: 8px;">時間： ${MEETING_DATE || record.date}</div>
+            <div style="margin-bottom: 8px;">召集人： ${CONVENER}</div>
+            <div style="margin-bottom: 8px;">評比教師： ${record.reviewers}</div>
+            
+            <div style="margin-bottom: 4px;">評比說明：</div>
+            <div style="padding-left: 20px; margin-bottom: 16px;">
+              <div>1. 請參考附件之評選標準，將各版本課本、習作、教學指引一併評比，以求客觀公正。</div>
+              <div>2. 請與同年段該領域授課教師共同討論選用版本，並相互協調意見後再決定版本。</div>
+              <div>3. 若沿用前學年度版本請勾選填寫「沿用______版本」；若更換版本請勾選填寫「改用________版本」，年度領域小組成員討論並寫下更換原因，並請年段領域選用代表人於會議上報告。</div>
+            </div>
+            
+            <div style="margin-bottom: 8px;">評比意見：</div>
+            <div style="padding-left: 24px; margin-bottom: 20px;">
+              <div style="margin-bottom: 12px;">
+                <span style="display:inline-block; width:16px; height:16px; border:1px solid black; margin-right:8px; text-align:center; line-height:16px;">
+                  ${record.decision === 'keep' ? '✓' : '&nbsp;'}
+                </span>
+                教科書沿用前學年度 <span style="text-decoration: underline; padding: 0 10px;">${keepText || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> 版本。
+              </div>
+              <div style="margin-bottom: 12px;">
+                <span style="display:inline-block; width:16px; height:16px; border:1px solid black; margin-right:8px; text-align:center; line-height:16px;">
+                  ${record.decision === 'change' ? '✓' : '&nbsp;'}
+                </span>
+                教科書改用 <span style="text-decoration: underline; padding: 0 10px;">${changeText || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> 版本，
+              </div>
+              <div style="margin-left: 28px;">
+                更換原因為： <span style="text-decoration: underline; word-break: break-all;">${record.reason || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span>
+              </div>
+            </div>
+            
+            <!-- 斷頁器 -->
+            <div class="pdf-page-break"></div>
+
+            <!-- 第二頁：評選標準 -->
+            <div style="margin-top: 10px; padding-top: 40px;">
+              <div style="font-weight: bold; font-size: 20px; margin-bottom: 16px;">附件 評選標準參考</div>
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid black; text-align: center;">
+                <thead>
+                  <tr>
+                    <th rowspan="2" style="border: 1px solid black; padding: 10px; width: 40%;">評比內容</th>
+                    <th colspan="3" style="border: 1px solid black; padding: 10px;">版本</th>
+                  </tr>
+                  <tr>
+                    ${PUBLISHERS.map(pub => `<th style="border: 1px solid black; padding: 10px;">${pub}</th>`).join('')}
+                  </tr>
+                  <tr style="font-size: 13px; font-weight: normal;">
+                    <th style="border: 1px solid black; padding: 10px;"></th>
+                    ${PUBLISHERS.map(() => `<th style="border: 1px solid black; padding: 8px;">極佳 5&nbsp;佳 4&nbsp;尚可 3<br/>差 2&nbsp;極差 1</th>`).join('')}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${CRITERIA.map((criterion, cIdx) => `
+                    <tr>
+                      <td style="border: 1px solid black; padding: 10px; text-align: left;">${criterion}</td>
+                      ${PUBLISHERS.map((pub, pIdx) => `<td style="border: 1px solid black; padding: 10px;">${record.scores[cIdx][pIdx]}</td>`).join('')}
+                    </tr>
+                  `).join('')}
+                  <tr style="font-weight: bold;">
+                    <td style="border: 1px solid black; padding: 10px; text-align: right;">總分</td>
+                    ${totals.map((t) => `<td style="border: 1px solid black; padding: 10px;">${t}</td>`).join('')}
+                  </tr>
+                  <tr style="font-weight: bold;">
+                    <td style="border: 1px solid black; padding: 10px; text-align: right;">名次（順位）</td>
+                    ${ranks.map((rank) => `<td style="border: 1px solid black; padding: 10px;">${rank}</td>`).join('')}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+
+        const opt = {
+          margin:       0,
+          filename:     `${record.grade}${record.subject}_審查紀錄表.pdf`,
+          image:        { type: 'jpeg', quality: 1 },
+          html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 }, 
+          jsPDF:        { unit: 'px', format: [800, 1131], orientation: 'portrait' }, 
+          pagebreak:    { mode: 'css', before: '.pdf-page-break' }
+        };
+
+        html2pdf().set(opt).from(htmlString).save().then(() => {
+          showToast("PDF 檔案已成功下載！");
+        }).catch(err => {
+          console.error("PDF 產生失敗", err);
+          showToast("PDF 產生失敗，請再試一次。");
+        });
+      };
+
+      const exportToWord = (record) => {
+        const totals = PUBLISHERS.map((_, i) => calculateTotal(record.scores, i));
+        const ranks = calculateRanks(record.scores);
+        const keepText = record.decision === 'keep' ? (record.seriesName ? `${record.prevVersion}-${record.seriesName}` : record.prevVersion) : '';
+        const changeText = record.decision === 'change' ? (record.seriesName ? `${record.changedPublisher}-${record.seriesName}` : record.changedPublisher) : '';
+
+        const html = `
+          <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+          <head><meta charset='utf-8'><title>教科書審查紀錄表</title>
+          <style>
+            body { font-family: '標楷體', 'DFKai-SB', serif; }
+            .doc-title { font-size: 16pt; font-weight: bold; text-align: center; margin-bottom: 20px; letter-spacing: 2px;}
+            .doc-info { margin-bottom: 15px; line-height: 1.8; font-size: 12pt; }
+            .doc-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; }
+            .doc-table th, .doc-table td { border: 1px solid black; padding: 6px; }
+            .checkbox-box { display: inline-block; width: 14px; height: 14px; border: 1px solid black; margin-right: 4px; vertical-align: middle; text-align: center; line-height: 14px; font-size: 12px; font-weight: bold;}
+            .underline-gap { display: inline-block; border-bottom: 1px solid black; min-width: 100px; text-align: center; padding: 0 10px;}
+            .underline-gap-long { display: inline-block; border-bottom: 1px solid black; width: 300px; padding: 0 10px;}
+            .page-break { page-break-before: always; }
+          </style>
+          </head><body>
+            <div class="doc-title">${SCHOOL_NAME}${ACADEMIC_YEAR}學年度${record.grade}${record.subject}教科書審查紀錄表</div>
+            <div class="doc-info">
+              <div>時間： ${MEETING_DATE || record.date}</div>
+              <div>召集人： ${CONVENER}</div>
+              <div>評比教師： ${record.reviewers}</div>
+              <div>評比說明：</div>
+              <div style="padding-left: 10px; margin-top: 5px; margin-bottom: 10px;">
+                <div>1. 請參考附件之評選標準,將各版本課本、習作、教學指引一併評比，以求客觀公正。</div>
+                <div>2. 請與同年段該領域授課教師共同討論選用版本,並相互協調意見後再決定版本。</div>
+                <div>3. 若沿用前學年度版本請勾選填寫「沿用______版本」;若更換版本請勾選填寫「改用________版本」,年度領域小組成員討論並寫下更換原因,並請年段領域選用代表人於會議上報告。</div>
+              </div>
+              <div>評比意見：</div>
+              <div style="padding-left: 20px; margin-top: 10px;">
+                <div>
+                  <span class="checkbox-box">${record.decision === 'keep' ? '✓' : '&nbsp;'}</span>
+                  教科書沿用前學年度 <span class="underline-gap">${keepText}</span> 版本。
+                </div>
+                <div style="margin-top: 10px;">
+                  <span class="checkbox-box">${record.decision === 'change' ? '✓' : '&nbsp;'}</span>
+                  教科書改用 <span class="underline-gap">${changeText}</span> 版本，
+                </div>
+                <div style="margin-left: 20px; margin-top: 5px;">
+                  更換原因為： <span class="underline-gap-long">${record.reason}</span>
+                </div>
+              </div>
+            </div>
+            
+            <br clear="all" style="page-break-before:always" />
+            <div class="page-break"></div>
+
+            <div style="margin-top: 20px;">
+              <div style="font-weight: bold; margin-bottom: 10px; font-size: 14pt;">附件 評選標準參考</div>
+              <table class="doc-table">
+                <thead>
+                  <tr>
+                    <th rowspan="2" style="width: 40%">評比內容</th>
+                    <th colspan="3">版本</th>
+                  </tr>
+                  <tr>
+                    ${PUBLISHERS.map(pub => `<th>${pub}</th>`).join('')}
+                  </tr>
+                  <tr style="font-size: 9pt; font-weight: normal;">
+                    <th></th>
+                    ${PUBLISHERS.map(() => `<th>極佳 5 佳 4 尚可 3 差 2 極差 1</th>`).join('')}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${CRITERIA.map((criterion, cIdx) => `
+                    <tr>
+                      <td>${criterion}</td>
+                      ${PUBLISHERS.map((pub, pIdx) => `<td style="text-align: center">${record.scores[cIdx][pIdx]}</td>`).join('')}
+                    </tr>
+                  `).join('')}
+                  <tr style="font-weight: bold;">
+                    <td style="text-align: right">總分</td>
+                    ${totals.map((t) => `<td style="text-align: center">${t}</td>`).join('')}
+                  </tr>
+                  <tr style="font-weight: bold;">
+                    <td style="text-align: right">名次（順位）</td>
+                    ${ranks.map((rank) => `<td style="text-align: center">${rank}</td>`).join('')}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </body></html>
+        `;
+
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${record.grade}${record.subject}_審查紀錄表.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast("Word 檔案已下載！");
+      };
+
+      const renderChecklist = () => {
+        const completedTasks = teacherTasks.filter(t => t.isCompleted).length;
+        const totalTasks = teacherTasks.length;
+        const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+        return (
+          <div className="max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <span className="text-blue-600"><IconCheckSquare /></span> 個人進度檢核
+            </h2>
+            
+            <div className="bg-blue-50 p-6 rounded-xl mb-8 border border-blue-100">
+              <label className="block text-sm font-semibold text-blue-900 mb-3">請選擇您的姓名以查看負責科目：</label>
+              <select 
+                className="w-full sm:w-1/2 p-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-lg font-medium text-gray-800 shadow-sm"
+                value={selectedTeacherForChecklist}
+                onChange={e => setSelectedTeacherForChecklist(e.target.value)}
+              >
+                <option value="">-- 請選擇教師 --</option>
+                {allTeachersList.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+
+            {selectedTeacherForChecklist && (
+              <div>
+                {totalTasks > 0 ? (
+                  <>
+                    <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold text-gray-700">完成進度</span>
+                        <span className="font-bold text-blue-600 text-lg">{completedTasks} / {totalTasks}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div 
+                          className={`h-3 rounded-full transition-all duration-500 ${progressPercentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                          style={{ width: `${progressPercentage}%` }}
+                        ></div>
+                      </div>
+                      {progressPercentage === 100 && (
+                        <p className="text-green-600 font-bold mt-3 text-center flex items-center justify-center gap-1">
+                          <IconCheckCircle /> 恭喜！您負責的科目已全數填寫完畢。
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-3">
+                      {teacherTasks.map((task, idx) => (
+                        <div key={idx} className={`flex items-center justify-between p-4 rounded-xl border ${task.isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200 shadow-sm'}`}>
+                          <div className="flex items-center gap-3">
+                            {task.isCompleted ? (
+                              <span className="text-green-500 flex-shrink-0"><IconCheckCircle /></span>
+                            ) : (
+                              <span className="text-gray-300 flex-shrink-0"><IconXCircle /></span>
+                            )}
+                            <div className="flex flex-col">
+                              <span className={`font-bold text-lg ${task.isCompleted ? 'text-green-800' : 'text-gray-700'}`}>
+                                {task.grade} {task.subject}
+                              </span>
+                              <span className="text-sm text-gray-500 mt-1">
+                                評比教師：{task.reviewers}
+                              </span>
+                            </div>
+                          </div>
+                          <div>
+                            {task.isCompleted ? (
+                              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-bold border border-green-200">已完成</span>
+                            ) : (
+                              <button 
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, grade: task.grade, subject: task.subject }));
+                                  setEditingId(null);
+                                  setActiveTab('form');
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                              >
+                                前往填寫
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <p className="text-gray-500">目前分配表中沒有指派給您的科目。</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      const renderAllocationTable = () => {
+        const allSubjects = [
+          "語文領域國語文", "語文領域英語文", "數學領域", "生活課程", 
+          "自然科學領域", "社會領域", "藝術領域", "綜合活動領域", 
+          "健康與體育領域", "彈性課程望潮英創客"
+        ];
+        return (
+          <div className="max-w-6xl mx-auto p-4 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <span className="text-blue-600"><IconUsers /></span> 各領域/科目 評比教師分配表
+              </h2>
+              <div className="flex items-center gap-2">
+                <button onClick={handleAdminToggle} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${isAdmin ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  {isAdmin ? <><IconUnlock /> 登出管理員</> : <><IconLock /> 管理員解鎖</>}
+                </button>
+                {isAdmin && !isEditingTable && (
+                  <button onClick={() => setIsEditingTable(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+                    <IconEdit /> 編輯分配表
+                  </button>
+                )}
+                {isAdmin && isEditingTable && (
+                  <button onClick={saveAllocationTable} className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
+                    <IconSave /> 儲存修改
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <p className="text-sm sm:text-base text-gray-600 mb-6">
+              {isEditingTable 
+                ? "您正在編輯模式：請點擊下方欄位直接修改內容，完成後請按「儲存修改」。" 
+                : "依據領域專業、授課教師及專任配置排定。預設帶入至填寫表單。"}
+            </p>
+            
+            <div className="overflow-x-auto mt-2">
+              <table className="w-full border-collapse text-sm text-center min-w-[600px]">
+                <thead>
+                  <tr className="bg-blue-50 border-b-2 border-blue-200">
+                    <th className="p-3 border sticky left-0 bg-blue-50 z-10">領域 / 科目</th>
+                    <th className="p-3 border">一年級</th>
+                    <th className="p-3 border">二年級</th>
+                    <th className="p-3 border">三年級</th>
+                    <th className="p-3 border">四年級</th>
+                    <th className="p-3 border">五年級</th>
+                    <th className="p-3 border">六年級</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allSubjects.map(sub => (
+                    <tr key={sub} className="hover:bg-gray-50 border-b">
+                      <td className="p-3 border font-semibold text-gray-700 bg-gray-50 text-left pl-4 sticky left-0 whitespace-nowrap z-10">{sub}</td>
+                      {GRADES.map(grade => (
+                        <td key={`${grade}-${sub}`} className={`border ${isEditingTable ? 'p-1' : 'p-3'}`}>
+                          {isEditingTable ? (
+                            <input 
+                              type="text" 
+                              className="w-full p-2 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-center"
+                              value={allocationData[grade]?.[sub] || ""}
+                              onChange={(e) => handleAllocationChange(grade, sub, e.target.value)}
+                            />
+                          ) : (
+                            allocationData[grade]?.[sub] || <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      };
+
+      const renderForm = () => {
+        const prevVer = (formData.grade && formData.subject) ? getPrevVersion(formData.grade, formData.subject) : "";
+        const totals = PUBLISHERS.map((_, i) => calculateTotal(formData.scores, i));
+        const ranks = calculateRanks(formData.scores);
+
+        return (
+          <div className="max-w-6xl mx-auto p-4 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <span className="text-blue-600"><IconFileText /></span> 
+                {editingId ? "修改教科書審查紀錄" : "新增教科書審查紀錄"}
+              </h2>
+              {editingId && (
+                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+                  <IconEdit /> 編輯模式
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 p-4 sm:p-6 bg-blue-50 rounded-xl">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">年級</label>
+                <select className="w-full p-3 sm:p-2 border border-gray-300 rounded-lg sm:rounded focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-500"
+                  value={formData.grade} onChange={e => setFormData({...formData, grade: e.target.value})} disabled={editingId !== null}>
+                  <option value="">-- 請選擇年級 --</option>
+                  {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">領域 / 科目</label>
+                <select className="w-full p-3 sm:p-2 border border-gray-300 rounded-lg sm:rounded focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-500"
+                  value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} disabled={!formData.grade || editingId !== null}>
+                  <option value="">-- 請選擇科目 --</option>
+                  {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">評比教師</label>
+                <input type="text" className="w-full p-3 sm:p-2 border border-gray-300 rounded-lg sm:rounded focus:ring-2 focus:ring-blue-500 bg-white"
+                  value={formData.reviewers} onChange={e => setFormData({...formData, reviewers: e.target.value})} placeholder="自動帶入，也可手動修改"/>
+              </div>
+            </div>
+
+            {formData.grade && formData.subject && (
+              <div className="mb-8 p-4 sm:p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">選用決議</h3>
+                <div className="mb-4">
+                  <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm border">
+                    <span className="text-blue-500 font-bold">ℹ️</span>
+                    {PREV_ACADEMIC_YEAR}學年度使用版本：<strong className="text-blue-700">{prevVer}</strong>
+                  </span>
+                </div>
+                <div className="flex flex-col gap-3 sm:gap-4">
+                  <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-blue-50 transition-colors">
+                    <input type="radio" name="decision" checked={formData.decision === 'keep'} onChange={() => setFormData({...formData, decision: 'keep'})} className="w-6 h-6 text-blue-600"/>
+                    <span className="font-medium text-gray-800 text-base sm:text-lg">沿用前學年度版本 <span className="text-blue-600 font-bold">({prevVer})</span></span>
+                  </label>
+
+                  <label className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${formData.decision === 'change' ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 hover:bg-blue-50'}`}>
+                    <input type="radio" name="decision" checked={formData.decision === 'change'} onChange={() => setFormData({...formData, decision: 'change'})} className="w-6 h-6 text-blue-600 mt-1"/>
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-800 block mb-2 text-base sm:text-lg mt-0.5">改用其他版本</span>
+                      {formData.decision === 'change' && (
+                        <div className="space-y-4 mt-3 bg-white p-4 rounded-lg border border-blue-100 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-sm font-medium text-gray-700">改用版本：</span>
+                            <select className="p-3 sm:p-2 border border-gray-300 rounded-lg text-base w-full sm:w-auto"
+                              value={formData.changedPublisher} onChange={e => setFormData({...formData, changedPublisher: e.target.value})}>
+                              <option value="">請選擇新版本</option>
+                              {PUBLISHERS.filter(p => p !== prevVer).map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-700 block mb-2">更換原因：</span>
+                            <textarea className="w-full p-3 border border-gray-300 rounded-lg text-base min-h-[100px]" rows="3"
+                              value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} placeholder="請敘述更換原因..."/>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  {isEnglishSubject && (
+                    <div className="mt-2 p-4 bg-orange-50 border border-orange-200 rounded-xl shadow-sm relative overflow-hidden">
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400"></div>
+                      <label className="block text-base font-bold text-orange-900 mb-2">請填寫英語教材特定系列版本 (必填)</label>
+                      <p className="text-sm text-orange-700 mb-3">不論沿用或改用，請明確填寫系列名稱，例如：Hooray、Wonder World...</p>
+                      <input type="text" className="w-full p-3 border border-orange-300 rounded-lg text-base"
+                        placeholder="請輸入系列名稱..." value={formData.seriesName} onChange={e => setFormData({...formData, seriesName: e.target.value})} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mb-8">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-4 gap-2">
+                <h3 className="text-lg font-bold text-gray-800">附件：評選標準參考</h3>
+                <span className="text-sm font-medium px-3 py-1 bg-gray-100 rounded-full text-gray-600 self-start sm:self-auto">
+                  評分標準：5(極佳) - 4(佳) - 3(尚可) - 2(差) - 1(極差)
+                </span>
+              </div>
+
+              {/* 手機版卡片 */}
+              <div className="md:hidden space-y-4">
+                {CRITERIA.map((criterion, cIdx) => (
+                  <div key={cIdx} className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm">
+                    <div className="font-medium text-gray-800 mb-4"><span className="text-blue-600 mr-1">{cIdx + 1}.</span>{criterion}</div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {PUBLISHERS.map((pub, pIdx) => (
+                        <div key={pub} className="flex flex-col">
+                          <label className="text-xs text-center text-gray-500 mb-1.5 font-medium">{pub}</label>
+                          <select className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg text-center text-lg font-bold text-blue-700"
+                            value={formData.scores[cIdx][pIdx]} onChange={(e) => handleScoreChange(cIdx, pIdx, e.target.value)}>
+                            {[5,4,3,2,1].map(num => <option key={num} value={num}>{num} 分</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm mt-6">
+                  <h4 className="font-bold text-center text-blue-800 mb-4 border-b border-blue-200 pb-2">評分總結</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {PUBLISHERS.map((pub, pIdx) => (
+                      <div key={pub} className="text-center">
+                        <div className="text-sm font-medium text-gray-600 mb-1">{pub}</div>
+                        <div className="text-2xl font-black text-blue-600">{totals[pIdx]}</div>
+                        <div className="text-sm text-gray-500 mt-1">第 {ranks[pIdx]} 名</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 桌機版表格 */}
+              <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full min-w-[800px] border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border-b p-3 text-left w-1/4 font-semibold text-gray-700">評比內容</th>
+                      {PUBLISHERS.map(pub => <th key={pub} className="border-b border-l p-3 text-center font-semibold text-gray-700">{pub}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CRITERIA.map((criterion, cIdx) => (
+                      <tr key={cIdx} className="hover:bg-gray-50">
+                        <td className="border-b p-3 pr-4 text-gray-800">{cIdx + 1}. {criterion}</td>
+                        {PUBLISHERS.map((pub, pIdx) => (
+                          <td key={pub} className="border-b border-l p-2 text-center align-middle">
+                            <select className="p-2 border border-gray-300 rounded w-20 text-center text-base"
+                              value={formData.scores[cIdx][pIdx]} onChange={(e) => handleScoreChange(cIdx, pIdx, e.target.value)}>
+                              {[5,4,3,2,1].map(num => <option key={num} value={num}>{num}</option>)}
+                            </select>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                    <tr className="bg-blue-50">
+                      <td className="border-b p-3 text-right font-bold text-gray-700">總分</td>
+                      {totals.map((total, i) => <td key={i} className="border-b border-l p-3 text-center text-blue-700 text-xl font-bold">{total}</td>)}
+                    </tr>
+                    <tr className="bg-blue-50">
+                      <td className="p-3 text-right font-bold text-gray-700">名次（順位）</td>
+                      {ranks.map((rank, i) => <td key={i} className="border-l p-3 text-center font-bold text-gray-800">{rank}</td>)}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 pt-4 border-t border-gray-100">
+              <button onClick={() => { 
+                if(window.confirm("確定要取消編輯並清除資料嗎？")) {
+                  setFormData(getInitialFormData());
+                  setEditingId(null);
+                }
+              }}
+                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-gray-100 border border-gray-300 rounded-xl sm:rounded-lg text-gray-700 font-medium">
+                {editingId ? "取消編輯" : "清除重填"}
+              </button>
+              <button onClick={handleSubmit} disabled={isSaving}
+                className={`w-full sm:w-auto px-8 py-3 sm:py-2 text-white rounded-xl sm:rounded-lg flex justify-center items-center gap-2 shadow-md font-medium ${isSaving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                <IconSave /> {isSaving ? '儲存中...' : (editingId ? '更新紀錄表' : '儲存紀錄表 (自動同步)')}
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      const renderList = () => {
+        return (
+          <div className="max-w-6xl mx-auto p-4 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-2"><span className="text-blue-600"><IconList /></span> 已儲存的紀錄</div>
+              {user ? (
+                <span className="text-sm font-normal text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">● 雲端同步中</span>
+              ) : (
+                <span className="text-sm font-normal text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-200">● 僅保存在本機</span>
+              )}
+            </h2>
+
+            {records.length === 0 ? (
+              <div className="text-center py-16 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-300 mx-2">
+                <div className="flex justify-center text-gray-400 mb-4"><IconFileText /></div>
+                <p className="text-lg">目前尚無紀錄，請點擊上方「新增」開始選用。</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-700">
+                      <th className="p-4 border-b font-semibold">填寫日期</th>
+                      <th className="p-4 border-b font-semibold">年級 / 科目</th>
+                      <th className="p-4 border-b font-semibold">評比教師</th>
+                      <th className="p-4 border-b font-semibold">選用決議</th>
+                      <th className="p-4 border-b text-center font-semibold">操作 / 匯出</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {records.map((r) => (
+                      <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-4 border-b text-gray-600">{r.date}</td>
+                        <td className="p-4 border-b font-bold text-gray-800">{r.grade} {r.subject}</td>
+                        <td className="p-4 border-b text-gray-600">{r.reviewers}</td>
+                        <td className="p-4 border-b">
+                          {r.decision === 'keep' ? (
+                            <span className="text-green-700 font-medium bg-green-50 px-3 py-1.5 rounded-lg text-sm border border-green-200">沿用 {r.finalPublisher}</span>
+                          ) : (
+                            <span className="text-orange-700 font-medium bg-orange-50 px-3 py-1.5 rounded-lg text-sm border border-orange-200">改用 {r.finalPublisher}</span>
+                          )}
+                        </td>
+                        <td className="p-4 border-b text-center">
+                          <div className="flex justify-center items-center gap-2">
+                            <button onClick={() => exportToPDF(r)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm" title="下載為 PDF">
+                              <IconPdf /> PDF
+                            </button>
+                            <button onClick={() => exportToWord(r)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm" title="下載為 Word">
+                              <IconDownload /> Word
+                            </button>
+                            <button onClick={() => handlePrint(r)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm font-medium shadow-sm" title="預覽或列印">
+                              <IconPrinter /> 預覽
+                            </button>
+                            <button onClick={() => handleEdit(r)} className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200" title="修改此紀錄">
+                              <IconEdit />
+                            </button>
+                            <button onClick={() => handleDelete(r.id)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200" title="刪除此紀錄">
+                              <IconTrash />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // 🌟 ★ 徹底修復：預覽模式出現 $ 符號的語法錯誤
+      const renderPrint = () => {
+        if (!printRecord) return null;
+        const r = printRecord;
+        const totals = PUBLISHERS.map((_, i) => calculateTotal(r.scores, i));
+        const ranks = calculateRanks(r.scores);
+
+        const keepText = r.decision === 'keep' ? (r.seriesName ? `${r.prevVersion}-${r.seriesName}` : r.prevVersion) : '';
+        const changeText = r.decision === 'change' ? (r.seriesName ? `${r.changedPublisher}-${r.seriesName}` : r.changedPublisher) : '';
+
+        return (
+          <div className="bg-white p-4 sm:p-8 max-w-[800px] mx-auto text-black print-container font-serif">
+            <style dangerouslySetInnerHTML={{__html: `
+              @media print {
+                body * { visibility: hidden; }
+                .print-container, .print-container * { visibility: visible; }
+                .print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                @page { margin: 1.5cm; }
+              }
+              .doc-title { font-size: 1.25rem; font-weight: bold; text-align: center; margin-bottom: 1.5rem; letter-spacing: 0.05em;}
+              .doc-info { margin-bottom: 1rem; line-height: 1.8; }
+              .doc-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem;}
+              .doc-table th, .doc-table td { border: 1px solid black; padding: 6px; }
+              .checkbox-box { display: inline-block; width: 14px; height: 14px; border: 1px solid black; margin-right: 4px; vertical-align: middle; position: relative; }
+              .checkbox-checked::after { content: '✓'; position: absolute; top: -3px; left: 1px; font-size: 14px; font-weight: bold;}
+              .underline-gap { display: inline-block; border-bottom: 1px solid black; min-width: 100px; padding: 0 10px; text-align: center; }
+              .underline-gap-long { display: inline-block; border-bottom: 1px solid black; width: 300px; padding: 0 10px; }
+            `}} />
+
+            <div className="doc-title">{SCHOOL_NAME}{ACADEMIC_YEAR}學年度{r.grade}{r.subject}教科書審查紀錄表</div>
+            <div className="doc-info">
+              {/* 修復了所有的 $ 符號 */}
+              <div>時間： {MEETING_DATE || r.date}</div>
+              <div>召集人： {CONVENER}</div>
+              <div>評比教師： {r.reviewers}</div>
+              <div>評比說明：</div>
+              <div className="pl-2 mt-1 mb-3 space-y-1">
+                <div>1. 請參考附件之評選標準,將各版本課本、習作、教學指引一併評比，以求客觀公正。</div>
+                <div>2. 請與同年段該領域授課教師共同討論選用版本,並相互協調意見後再決定版本。</div>
+                <div>3. 若沿用前學年度版本請勾選填寫「沿用______版本」;若更換版本請勾選填寫「改用________版本」,年度領域小組成員討論並寫下更換原因,並請年段領域選用代表人於會議上報告。</div>
+              </div>
+              <div>評比意見：</div>
+              <div className="pl-4 mt-2">
+                <div><span className={`checkbox-box ${r.decision === 'keep' ? 'checkbox-checked' : ''}`}></span>教科書沿用前學年度 <span className="underline-gap">{keepText}</span> 版本。</div>
+                <div className="mt-2"><span className={`checkbox-box ${r.decision === 'change' ? 'checkbox-checked' : ''}`}></span>教科書改用 <span className="underline-gap">{changeText}</span> 版本，</div>
+                <div className="ml-5 mt-1">更換原因為： <span className="underline-gap-long">{r.reason}</span></div>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <div className="font-bold mb-2">附件 評選標準參考</div>
+              <table className="doc-table">
+                <thead>
+                  <tr><th rowSpan={2} style={{width: '40%'}}>評比內容</th><th colSpan={3}>版本</th></tr>
+                  <tr>{PUBLISHERS.map(pub => <th key={pub}>{pub}</th>)}</tr>
+                  <tr style={{fontSize: '0.8rem'}}><th></th>{PUBLISHERS.map(pub => <th key={`score-${pub}`} style={{fontWeight: 'normal'}}>極佳 5 佳 4 尚可 3<br/>差 2 極差 1</th>)}</tr>
+                </thead>
+                <tbody>
+                  {CRITERIA.map((criterion, cIdx) => (
+                    <tr key={cIdx}><td>{criterion}</td>{PUBLISHERS.map((pub, pIdx) => <td key={pub} style={{textAlign: 'center'}}>{r.scores[cIdx][pIdx]}</td>)}</tr>
+                  ))}
+                  <tr style={{fontWeight: 'bold'}}><td style={{textAlign: 'right'}}>總分</td>{totals.map((t, i) => <td key={`total-${i}`} style={{textAlign: 'center'}}>{t}</td>)}</tr>
+                  <tr style={{fontWeight: 'bold'}}><td style={{textAlign: 'right'}}>名次（順位）</td>{ranks.map((rank, i) => <td key={`rank-${i}`} style={{textAlign: 'center'}}>{rank}</td>)}</tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-4 print:hidden">
+              <button onClick={() => setActiveTab('list')} className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium">返回列表</button>
+              <button onClick={() => exportToPDF(r)} className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 font-medium"><IconPdf /> 下載 PDF</button>
+              <button onClick={() => exportToWord(r)} className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"><IconDownload /> 下載 Word</button>
+            </div>
+          </div>
+        );
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-50 sm:bg-gray-100 font-sans text-gray-800 selection:bg-blue-200">
+          {toast && (
+            <div className="fixed top-4 right-4 left-4 sm:left-auto z-50 bg-green-600 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-bounce">
+              <span className="text-2xl">✅</span>
+              <span className="font-medium text-lg">{toast}</span>
+            </div>
+          )}
+
+          {/* 分享視窗 (Modal) */}
+          {showShareModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full relative shadow-2xl">
+                <button onClick={() => setShowShareModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors">
+                  <IconTrash />
+                  <span className="absolute inset-0 flex justify-center items-center font-bold">✕</span>
+                </button>
+                <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">分享系統給校內教師</h3>
+                <p className="text-sm text-gray-600 text-center mb-6">請老師掃描下方 QR Code，或點擊右側按鈕複製網址傳至群組：</p>
+                <div className="flex justify-center mb-6">
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.href)}`} alt="系統 QR Code" className="w-48 h-48 border-4 border-white shadow-sm rounded-xl"/>
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" readOnly value={window.location.href} className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-500 overflow-hidden" />
+                  <button onClick={copyToClipboard} className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex-shrink-0 transition-colors flex items-center gap-1" title="複製網址">
+                    <span>📋</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab !== 'print' && (
+            <nav className="bg-white shadow-sm mb-4 sm:mb-8 print:hidden sticky top-0 z-40">
+              <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl flex-shrink-0">{ACADEMIC_YEAR}</div>
+                  <div>
+                    <h1 className="font-bold text-lg sm:text-xl text-gray-800 leading-tight">{SCHOOL_NAME} 教科書選用系統</h1>
+                    <p className="text-xs text-gray-500">Academic Year {ACADEMIC_YEAR} Textbook Selection</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 items-center" style={{scrollbarWidth: 'none'}}>
+                  <button onClick={() => setShowShareModal(true)} className="flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-bold flex items-center gap-1.5 sm:gap-2 transition-colors text-sm sm:text-base bg-orange-100 text-orange-700 hover:bg-orange-200 mr-2">
+                    <IconShare /> 分享
+                  </button>
+                  <button onClick={() => setActiveTab('checklist')} className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 sm:gap-2 transition-colors text-sm sm:text-base ${activeTab === 'checklist' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><IconCheckSquare /> 進度</button>
+                  <button onClick={() => setActiveTab('table')} className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 sm:gap-2 transition-colors text-sm sm:text-base ${activeTab === 'table' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><IconUsers /> 分配</button>
+                  <button onClick={() => {
+                    setFormData(getInitialFormData());
+                    setEditingId(null);
+                    setActiveTab('form');
+                  }} className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 sm:gap-2 transition-colors text-sm sm:text-base ${activeTab === 'form' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><IconPlus /> 新增</button>
+                  <button onClick={() => setActiveTab('list')} className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 sm:gap-2 transition-colors text-sm sm:text-base ${activeTab === 'list' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><IconList /> 紀錄 ({records.length})</button>
+                </div>
+              </div>
+            </nav>
+          )}
+
+          <main className="pb-16 sm:pb-12 px-2 sm:px-0">
+            {activeTab === 'checklist' && renderChecklist()}
+            {activeTab === 'table' && renderAllocationTable()}
+            {activeTab === 'form' && renderForm()}
+            {activeTab === 'list' && renderList()}
+            {activeTab === 'print' && renderPrint()}
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

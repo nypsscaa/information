@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == "jiaowu@textbook-cf439.web.app";
+    }
+    // ── 教科書選用系統（老師以匿名身分填寫，維持可讀寫，但必須經由系統登入）
+    match /artifacts/{appId}/public/data/textbookReviews/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // ── 教科書分配表：大家可看，只有教務組後台可改
+    match /artifacts/{appId}/public/data/settings/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    // ── 課表系統：所有人可看，只有教務組後台可改
+    match /tt_meta/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /tt_days/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // 其他路徑一律拒絕
+  }
+}
