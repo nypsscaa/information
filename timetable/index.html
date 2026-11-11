@@ -120,6 +120,67 @@ dialog::backdrop{background:rgba(0,0,0,.3)}
   .tt td.conf{box-shadow:none}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+/* 個人課表：調課 */
+.tt .moved{font-size:11px;color:#6b7280;margin-top:2px}
+.summary{border:1px solid var(--soft);background:#fbfaf6;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:14px}
+.summary ul{margin:6px 0 0;padding:0;list-style:none}
+.summary li{padding:3px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.summary .when{color:var(--muted);min-width:120px}
+.summary.ok{color:var(--muted)}
+/* 電腦版：縮放與固定表頭 */
+.scroll.fitmode{overflow:visible;border:none}
+.scroll.fitmode #sheet{padding:4px 0}
+.scroll.capped{max-height:calc(100vh - 150px);overflow:auto}
+.tt thead{position:sticky;top:0;z-index:3}
+.scroll.capped .tt tbody th.rh{position:sticky;left:0;z-index:2}
+.fitchk{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer}
+#mag{position:fixed;pointer-events:none;background:#fff;border:1px solid #999;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.2);padding:6px 12px;font-size:16px;z-index:50;text-align:center;line-height:1.4}
+#mag .t{font-size:14px;color:#333}
+/* 手機：星期按鈕與清單 */
+.daytabs{display:flex;gap:6px;margin-bottom:10px}
+.daytabs button{flex:1;min-width:0;border:1px solid #c9c4b8;background:#fff;border-radius:8px;padding:6px 0;display:flex;flex-direction:column;align-items:center;cursor:pointer;color:var(--ink);font-size:15px}
+.daytabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.daytabs small{font-size:11px;opacity:.85}
+.agenda{border:1px solid var(--soft);border-radius:8px;overflow:hidden;background:#fff}
+.ag-row{display:flex;border-top:1px solid var(--soft);min-height:50px}
+.ag-row:first-child{border-top:none}
+.ag-t{width:76px;flex:none;padding:6px 8px;background:rgba(0,0,0,.035);display:flex;flex-direction:column;justify-content:center}
+.ag-t b{font-size:14px}
+.ag-t small{color:var(--muted);font-size:11px}
+.ag-c{flex:1;min-width:0;padding:6px 10px;display:flex;flex-direction:column;justify-content:center;font-size:15px;gap:2px}
+.ag-row.light{min-height:36px}
+.ag-row.light .ag-c{color:var(--muted);font-size:13px}
+.ag-row.hol .ag-c{background:var(--hol)}
+.ag-row.blockrow .ag-c{font-weight:700}
+.ag-c .s{font-weight:700}
+.ag-c .t{color:#333}
+.ag-c .note{font-size:12px;color:#555}
+.ag-c .lost{font-size:12px;color:#777;text-decoration:line-through}
+.ag-c .moved{font-size:13px;color:#6b7280}
+.ag-c .it .cl{font-size:13px;color:#444}
+.muted{color:#aaa}
+.m-stats{text-align:left;margin:0 0 8px;font-size:13px}
+.scroll.m-day{border:none}
+.scroll.m-day .tt{width:100%;font-size:12px}
+.scroll.m-day .tt th.rh{min-width:48px}
+.scroll.m-day .tt td.c{min-width:0}
+@media print{
+  #sheet{zoom:1 !important}
+  .tt thead{position:static}
+  .tt-week{font-size:9px}
+  .tt-week td.c{min-width:0}
+  #mag{display:none}
+}
+@media (max-width:700px){
+  .bar{gap:6px}
+  .bar .btn,.bar select{padding:5px 9px;font-size:14px}
+  .bar .hide-m{display:none}
+  .ag-t{width:86px}
+  .ag-t b{font-size:13px;white-space:nowrap}
+  .summary{font-size:13px}
+  .summary .when{min-width:0}
+  header.top h1{font-size:17px}
+}
 </style>
 </head>
 <body>
@@ -204,6 +265,7 @@ const S = {
   sel: [], other: null,        // other = {kind:'text'|'blk'|'tut', key}
   editBase: false, baseIdx: 0, origIdx: -1, origMode: "week",
   basesLoaded: false, importing: false, fsDays: {},
+  day: 0, fit: true, printing: false,
   month: "", ctypes: new Set(["sub","swap"]),
   exporting: false
 };
@@ -399,23 +461,29 @@ function itemTd(it, date, d, span, rowspan, dstart){
   return `<td${sp} class="${ds} block ${TYPES[it.type]?.cls||""} ${can?"edit":""} ${isSel("blk",key)?"sel":""}" ${can?`data-blk="${key}"`:""}>${escBr(it.text)}</td>`;
 }
 
-/* ---------- 週課表 / 班級課表（共用） ---------- */
-function gridTable(dates, cols){
+/* ---------- 版面模式 ---------- */
+const mq = window.matchMedia("(max-width: 700px)");
+const isMobile = () => !S.exporting && !S.printing && mq.matches;
+const dayIdx = () => Math.min(Math.max(S.day ?? 0, 0), 4);
+const dayDates = () => S.view==="orig" ? null : weekDates(S.week);
+
+/* ---------- 週課表 / 班級課表（共用表格） ---------- */
+function gridTable(dates, cols, days = [0,1,2,3,4]){
   const week = cols.length===6;
   const models = [0,1,2,3,4].map(d => dayModel(dates?dates[d]:null, d));
   const conf = dates ? conflicts(dates, models) : new Set();
   let h = `<table class="tt ${week?"tt-week":"tt-class"}"><thead><tr><th class="rh">${week?"星期":"節次"}</th>`;
-  for (let d=0;d<5;d++) h += `<th colspan="${cols.length}" class="dstart">${dayLabel(dates,d)}</th>`;
+  for (const d of days) h += `<th colspan="${cols.length}" class="dstart">${dayLabel(dates,d)}</th>`;
   h += `</tr>`;
-  if (week){ h += `<tr><th class="rh">年級／節次</th>`; for (let d=0;d<5;d++) CN.forEach((n,c) => h += `<th class="${c===0?"dstart":""}">${n}<br>年級</th>`); h += `</tr>`; }
+  if (week){ h += `<tr><th class="rh">年級／節次</th>`; for (const d of days) CN.forEach((n,c) => h += `<th class="${c===0?"dstart":""}">${n}<br>年級</th>`); h += `</tr>`; }
   h += `</thead><tbody>`;
-  if (week){ h += `<tr><th class="rh">導師</th>`; for (let d=0;d<5;d++) for (let c=0;c<6;c++) h += tutorTd(dates?dates[d]:null, c, c===0); h += `</tr>`; }
+  if (week){ h += `<tr><th class="rh">導師</th>`; for (const d of days) for (let c=0;c<6;c++) h += tutorTd(dates?dates[d]:null, c, c===0); h += `</tr>`; }
   for (let ri=0; ri<10; ri++){
     h += `<tr>${rowHead(ROWS[ri])}`;
-    let skipDays = 0;
-    for (let d=0; d<5; d++){
-      if (skipDays>0){ skipDays--; continue; }
-      const M = models[d]; const date = dates ? dates[d] : null;
+    let skip = 0;
+    for (let di=0; di<days.length; di++){
+      if (skip>0){ skip--; continue; }
+      const d = days[di]; const M = models[d]; const date = dates ? dates[d] : null;
       let j = 0;
       while (j < cols.length){
         const it = M.grid[ri][cols[j]];
@@ -425,8 +493,9 @@ function gridTable(dates, cols){
           if (it.kind==="cell") h += cellTd(date,d,it.c,it.p,j===0,conf);
           else {
             if (it.kind==="lunch" && span===cols.length){   // 連續幾天的午餐合併成一格
-              let e = d; while (e+1<5){ const n = models[e+1].grid[6]; if (cols.every(c => n[c]?.kind==="lunch" && n[c]===n[cols[0]])) e++; else break; }
-              span *= (e-d+1); skipDays = e-d;
+              let e = di;
+              while (e+1<days.length && days[e+1]===days[e]+1){ const n = models[days[e+1]].grid[6]; if (cols.every(c => n[c]?.kind==="lunch" && n[c]===n[cols[0]])) e++; else break; }
+              span *= (e-di+1); skip = e-di;
             }
             h += itemTd(it, date, d, span, it.r1-it.r0+1, j===0);
           }
@@ -439,25 +508,86 @@ function gridTable(dates, cols){
   return h + `</tbody></table>`;
 }
 
-/* ---------- 個人課表 ---------- */
-function teacherTable(dates, who){
+/* ---------- 個人課表：整週資料與調課配對 ---------- */
+function teacherWeek(dates, who){
   const models = [0,1,2,3,4].map(d => dayModel(dates?dates[d]:null, d));
-  const st = {total:0, inn:0, out:0};
+  const at = {};            // `${d}|${ri}` → 這格的項目
+  const gained = [], lost = [];
+  const add = (d,ri,e) => (at[`${d}|${ri}`] ||= []).push(e);
+  for (let d=0; d<5; d++){
+    const M = models[d]; const date = dates ? dates[d] : null;
+    for (const p of [1,2,3,4,5,6,7]){
+      const ri = RI[p];
+      for (let c=0;c<6;c++){
+        const it = M.grid[ri][c];
+        if (it.kind==="cell"){
+          const x = cellAt(date,d,c,p); if (!x) continue;
+          if (x.t===who){
+            const e = {kind:"have", d, p, c, x};
+            if (x.changed && x.ot!==who){ e.kind = "in"; gained.push(e); }
+            add(d,ri,e);
+          } else if (x.changed && x.ot===who){
+            const e = {kind:"out", d, p, c, x}; lost.push(e); add(d,ri,e);
+          }
+        } else if (it.kind==="block"){
+          const b = baseCell(date,d,c,p);
+          if (b?.t===who) add(d,ri,{kind:"blk", d, p, c, x:b, text:(it.text||"停課").replace(/\n/g," ")});
+        }
+      }
+    }
+  }
+  // 調課配對：同一週、同一班，一節調出 ↔ 一節調進
+  const gs = gained.filter(e => e.x.type==="swap"), ls = lost.filter(e => e.x.type==="swap");
+  ls.forEach(l => { const g = gs.find(g => !g.pair && g.c===l.c) || gs.find(g => !g.pair); if (g){ g.pair = l; l.pair = g; } });
+  const all = Object.values(at).flat();
+  const st = {
+    total: all.filter(e => e.kind==="have" || e.kind==="in").length,
+    swap: gained.filter(e => e.x.type==="swap").length,
+    sub: gained.filter(e => e.x.type!=="swap").length,
+    out: lost.filter(e => e.x.type!=="swap").length
+  };
+  return {models, at, gained, lost, st};
+}
+const slotName = (dates,e) => `${dates ? md(dates[e.d]) : `週${DAYN[e.d]}`} 第${PNUM[e.p]}節`;
+function entryHTML(e, dates){
+  const cl = `<span class="cl">${CN[e.c]}年級</span>`;
+  if (e.kind==="have") return `<div class="it">${cl} <span class="s">${esc(e.x.s)}</span></div>`;
+  if (e.kind==="in"){
+    const note = e.x.type==="swap" ? `↩ ${e.pair ? `由 ${slotName(dates,e.pair)} 調來` : "本節為調課"}` : (e.x.ot ? `代 ${esc(e.x.ot)}` : "");
+    return `<div class="it">${cl} <span class="s">${esc(e.x.s)}</span>${note?`<div class="note">${note}</div>`:""}</div>`;
+  }
+  if (e.kind==="out"){
+    if (e.x.type==="swap") return `<div class="moved">↪ ${CN[e.c]}年級 ${esc(e.x.os)} ${e.pair ? `調至 ${slotName(dates,e.pair)}` : "本節調課"}</div>`;
+    return `<div class="lost">${CN[e.c]}年級 ${esc(e.x.os)} → ${esc(e.x.t||"（無）")}</div>`;
+  }
+  return `<div class="lost">${CN[e.c]}年級 ${esc(e.x.s)} → ${esc(e.text)}</div>`;
+}
+function entriesCls(list){
+  const e = list.find(e => e.kind==="in") || list.find(e => e.kind==="out" && e.x.type!=="swap");
+  return e ? (TYPES[e.x.type]?.cls || "") : "";
+}
+function statsLine(st, orig){
+  if (orig) return `每週 ${st.total} 節`;
+  const parts = [st.swap?`調課 ${st.swap} 節`:"", st.sub?`代課 ${st.sub} 節`:""].filter(Boolean);
+  return `本週授課 ${st.total} 節${parts.length?`（${parts.join("、")}）`:""}${st.out?`，原課由他人代 ${st.out} 節`:""}`;
+}
+function teacherTable(dates, who){
+  const W = teacherWeek(dates, who);
   let h = `<table class="tt tt-teacher"><thead><tr><th class="rh">節次</th>`;
   for (let d=0;d<5;d++) h += `<th class="dstart">${dayLabel(dates,d)}</th>`;
   h += `</tr></thead><tbody>`;
   const full = it => it && it.c0===0 && it.c1===5 && it.kind!=="cell";
   for (let ri=0; ri<10; ri++){
     h += `<tr>${rowHead(ROWS[ri])}`;
-    let skipDays = 0;
+    let skip = 0;
     for (let d=0; d<5; d++){
-      if (skipDays>0){ skipDays--; continue; }
-      const M = models[d]; const date = dates ? dates[d] : null; const row = M.grid[ri];
+      if (skip>0){ skip--; continue; }
+      const row = W.models[d].grid[ri];
       if (full(row[0]) && row.every(x => x===row[0])){
         const it = row[0];
         if (it.r0!==ri) continue;
         let span = 1;
-        if (it.kind==="lunch"){ let e = d; while (e+1<5 && models[e+1].grid[6].every(x => x===models[e+1].grid[6][0] && x.kind==="lunch")) e++; span = e-d+1; skipDays = e-d; }
+        if (it.kind==="lunch"){ let e = d; while (e+1<5 && W.models[e+1].grid[6].every(x => x===W.models[e+1].grid[6][0] && x.kind==="lunch")) e++; span = e-d+1; skip = e-d; }
         h += itemTd(it, null, d, span, it.r1-it.r0+1, true).replace(/ data-(dt|blk)="[^"]*"/,"").replace(" edit","");
         continue;
       }
@@ -465,56 +595,113 @@ function teacherTable(dates, who){
         const texts = [...new Set(row.filter(x => x.kind==="text").map(x => x.text))];
         h += `<td class="dt dstart">${esc(texts.join("／"))}</td>`; continue;
       }
-      const p = ROWS[ri]; let inner = "", ty = "";
-      for (let c=0;c<6;c++){
-        const it = row[c];
-        if (it.kind==="cell"){
-          const x = cellAt(date,d,c,p); if (!x) continue;
-          if (x.t===who){
-            st.total++; if (x.changed && x.ot!==who) st.inn++;
-            if (x.changed && TYPES[x.type]?.cls) ty = TYPES[x.type].cls;
-            inner += `<div class="it"><span class="cl">${CN[c]}年級</span> <span class="s">${esc(x.s)}</span>${x.changed&&x.ot&&x.ot!==who?`<div class="note">代 ${esc(x.ot)}</div>`:""}</div>`;
-          } else if (x.changed && x.ot===who){
-            st.out++; ty = ty || TYPES[x.type]?.cls || "";
-            inner += `<div class="lost">${CN[c]}年級 ${esc(x.os)} → ${esc(x.t||"（無）")}</div>`;
-          }
-        } else if (it.kind==="block"){
-          const b = baseCell(date,d,c,p);
-          if (b?.t===who) inner += `<div class="lost">${CN[c]}年級 ${esc(b.s)} → ${esc((it.text||"停課").replace(/\n/g," "))}</div>`;
-        }
-      }
-      h += `<td class="c dstart ${ty} ${inner?"":"none"}">${inner}</td>`;
+      const list = W.at[`${d}|${ri}`] || [];
+      h += `<td class="c dstart ${entriesCls(list)} ${list.length?"":"none"}">${list.map(e => entryHTML(e,dates)).join("")}</td>`;
     }
     h += `</tr>`;
   }
-  return {html: h + `</tbody></table>`, st};
+  return {html: h + `</tbody></table>`, st: W.st};
 }
+function changeSummary(dates, who){
+  if (!dates) return "";
+  const W = teacherWeek(dates, who);
+  const list = [...W.gained, ...W.lost].sort((a,b) => a.d-b.d || a.p-b.p);
+  if (!list.length) return `<div class="summary noprint ok">${esc(who)}老師本週沒有調代課異動。</div>`;
+  const li = e => {
+    const when = `${md(dates[e.d])}(${DAYN[e.d]}) 第${PNUM[e.p]}節`;
+    const tag = `<span class="chip" style="background:${TYPES[e.x.type]?.color||"#fff"}">${e.x.type==="swap"?"調課":e.x.type==="sub"?"代課":e.x.type==="event"?"行事":"異動"}</span>`;
+    let txt;
+    if (e.kind==="in") txt = e.x.type==="swap" ? `${CN[e.c]}年級 ${esc(e.x.s)}${e.pair?`（由 ${slotName(dates,e.pair)} 調來）`:""}` : `代 ${esc(e.x.ot||"")} 上 ${CN[e.c]}年級 ${esc(e.x.s)}`;
+    else txt = e.x.type==="swap" ? `${CN[e.c]}年級 ${esc(e.x.os)} ${e.pair?`調至 ${slotName(dates,e.pair)}`:"調課"}` : `${CN[e.c]}年級 ${esc(e.x.os)} 由 ${esc(e.x.t||"（無）")} 代`;
+    return `<li><span class="when">${when}</span>${tag}${txt}</li>`;
+  };
+  return `<div class="summary noprint"><b>${esc(who)}老師本週有 ${list.length} 節異動</b><ul>${list.map(li).join("")}</ul></div>`;
+}
+
+/* ---------- 手機清單版 ---------- */
+const ROWLABEL = r => r==="am" ? ["晨間","08:10"] : r==="brk" ? ["大下課","10:10"] : r==="lunch" ? ["午餐","12:00"] : [`第${PNUM[r]}節`, PER[r].slice(0,5)];
+function rangeLabel(it){
+  const a = ROWS[it.r0], b = ROWS[it.r1];
+  if (it.r0===it.r1) return ROWLABEL(a);
+  const ps = ROWS.slice(it.r0, it.r1+1).filter(x => typeof x==="number");
+  return [ps.length>1 ? `第${PNUM[ps[0]]}～${PNUM[ps[ps.length-1]]}節` : ROWLABEL(a)[0], ROWLABEL(a)[1]];
+}
+function agRow(label, body, cls){ return `<div class="ag-row ${cls||""}"><div class="ag-t"><b>${label[0]}</b><small>${label[1]}</small></div><div class="ag-c">${body}</div></div>`; }
+function agenda(dates, d, mode){   // mode: {cls} 或 {who}
+  const date = dates ? dates[d] : null;
+  const M = dayModel(date, d);
+  let h = `<div class="agenda">`;
+  if (M.items[0]?.kind==="hol") return h + agRow(["全天",""], `<b>國定假日：${esc(M.items[0].text)}</b>　停課`, "hol") + `</div>`;
+  const W = mode.who!=null ? teacherWeek(dates, mode.who) : null;
+  for (let ri=0; ri<10; ri++){
+    const r = ROWS[ri];
+    if (mode.cls!=null){
+      const it = M.grid[ri][mode.cls];
+      if (it.r0!==ri) continue;
+      if (it.kind==="cell"){
+        const x = cellAt(date,d,mode.cls,r);
+        const body = x && (x.s||x.t) ? `<span class="s">${esc(x.s)}</span> <span class="t">${esc(x.t)}</span>${x.changed&&x.type!=="plain"?`<span class="note">（原：${esc(x.os||"無")} ${esc(x.ot||"")}）</span>`:""}` : `<span class="muted">—</span>`;
+        h += agRow(ROWLABEL(r), body, x?.changed ? TYPES[x.type]?.cls : "");
+      } else if (it.kind==="lunch") h += agRow(ROWLABEL(r), "午餐、午休", "light");
+      else h += agRow(rangeLabel(it), escBr(it.text)||"<span class='muted'>—</span>", (it.kind==="text"?"light ":"") + (it.kind==="block"?(TYPES[it.type]?.cls||"blockrow"):"") + (it.changed?" ty-event":""));
+      continue;
+    }
+    // 個人
+    const row = M.grid[ri];
+    if (row.every(x => x===row[0]) && row[0].kind!=="cell"){
+      const it = row[0]; if (it.r0!==ri) continue;
+      h += agRow(it.kind==="lunch" ? ROWLABEL(r) : rangeLabel(it), it.kind==="lunch" ? "午餐、午休" : escBr(it.text), it.kind==="block" ? (TYPES[it.type]?.cls||"blockrow") : "light");
+      continue;
+    }
+    if (ri===0 || ri===3 || ri===6){ const texts = [...new Set(row.filter(x => x.kind==="text").map(x => x.text))]; h += agRow(ROWLABEL(r), esc(texts.join("／")), "light"); continue; }
+    const list = W.at[`${d}|${ri}`] || [];
+    h += agRow(ROWLABEL(r), list.length ? list.map(e => entryHTML(e,dates)).join("") : `<span class="muted">空堂</span>`, entriesCls(list));
+  }
+  return h + `</div>`;
+}
+function dayTabs(dates){
+  return `<div class="daytabs noprint">${[0,1,2,3,4].map(d => {
+    const hol = dates && holidayName(dates[d]);
+    return `<button class="${d===dayIdx()?"on":""}" data-day="${d}"><b>${DAYN[d]}</b><small>${dates?md(dates[d]):""}${hol?" 放假":""}</small></button>`;
+  }).join("")}</div>`;
+}
+
+/* ---------- 標題與整張表 ---------- */
 function legend(){
   return `<div class="legend"><span class="sw" style="background:var(--event)"></span>粉紅色為學校行事、<span class="sw" style="background:var(--swap)"></span>藍色為教師協調代調課、<span class="sw" style="background:var(--sub)"></span>黃色為公假排代或自費代課</div>`;
 }
-function origSheetHTML(){
-  const B = baseFor(null);
-  const head = `${esc(S.settings.termName)}　${SCHOOL}　${esc(B.name)}（${md(B.from)} 起）`;
-  if (S.origMode==="class") return `<h2>${head}　${CN[S.cls]}年級課表（導師：${esc(B.tutor[S.cls])}）</h2>${gridTable(null,[S.cls])}`;
-  if (S.origMode==="teacher"){ const {html, st} = teacherTable(null, S.who); return `<h2>${head}　${esc(S.who)}老師課表</h2><div class="stats">每週 ${st.total} 節</div>${html}`; }
-  return `<h2>${head}　班級總日課表</h2>${gridTable(null,[0,1,2,3,4,5])}`;
-}
-function sheetHTML(){
-  if (S.view==="orig") return origSheetHTML();
-  const baseMode = S.editBase && S.view==="week";
-  const dates = baseMode ? null : weekDates(S.week);
-  const range = dates ? `${mmdd(dates[0])}-${mmdd(dates[4])}` : "";
+function sheetTitle(){
   const head = `${esc(S.settings.termName)}　${SCHOOL}`;
-  if (S.view==="week"){
-    const title = dates ? `${head}　W${S.week}　${range}班級總日課表` : `${head}　${esc(baseFor(null).name)}（自 ${md(baseFor(null).from)} 起）`;
-    return `<h2>${title}</h2>${legend()}${gridTable(dates,[0,1,2,3,4,5])}`;
+  if (S.view==="orig"){
+    const B = baseFor(null); const h2 = `${head}　${esc(B.name)}（${md(B.from)} 起）`;
+    return S.origMode==="class" ? `${h2}　${CN[S.cls]}年級課表（導師：${esc(B.tutor[S.cls])}）` : S.origMode==="teacher" ? `${h2}　${esc(S.who)}老師課表` : `${h2}　班級總日課表`;
   }
-  if (S.view==="class"){
-    const tut = [...new Set(dates.map(dt => tutorAt(dt,S.cls).t))].join("／");
-    return `<h2>${head}　W${S.week}　${range}　${CN[S.cls]}年級課表（導師：${esc(tut)}）</h2>${legend()}${gridTable(dates,[S.cls])}`;
-  }
+  if (S.editBase && S.view==="week") return `${head}　${esc(baseFor(null).name)}（自 ${md(baseFor(null).from)} 起）`;
+  const dates = weekDates(S.week); const range = `${mmdd(dates[0])}-${mmdd(dates[4])}`;
+  if (S.view==="week") return `${head}　W${S.week}　${range}班級總日課表`;
+  if (S.view==="class"){ const tut = [...new Set(dates.map(dt => tutorAt(dt,S.cls).t))].join("／"); return `${head}　W${S.week}　${range}　${CN[S.cls]}年級課表（導師：${esc(tut)}）`; }
+  return `${head}　W${S.week}　${range}　${esc(S.who)}老師個人課表`;
+}
+const curMode = () => S.view==="orig" ? S.origMode : S.view;   // week / class / teacher
+function sheetHTML(){
+  const orig = S.view==="orig";
+  const dates = orig || (S.editBase && S.view==="week") ? null : weekDates(S.week);
+  const m = curMode();
+  const lg = orig ? "" : legend();
+  if (m==="week") return `<h2>${sheetTitle()}</h2>${lg}${gridTable(dates,[0,1,2,3,4,5])}`;
+  if (m==="class") return `<h2>${sheetTitle()}</h2>${lg}${gridTable(dates,[S.cls])}`;
   const {html, st} = teacherTable(dates, S.who);
-  return `<h2>${head}　W${S.week}　${range}　${esc(S.who)}老師個人課表</h2>${legend()}<div class="stats">本週授課 ${st.total} 節${st.inn?`（含代課 ${st.inn} 節）`:""}${st.out?`，原課由他人上 ${st.out} 節`:""}</div>${html}`;
+  return `<h2>${sheetTitle()}</h2>${lg}<div class="stats">${statsLine(st, orig)}</div>${html}`;
+}
+function mobileBody(){
+  const orig = S.view==="orig";
+  const dates = orig ? null : weekDates(S.week);
+  const d = dayIdx(); const m = curMode();
+  let h = dayTabs(dates);
+  if (m==="week") return h + `<div class="scroll m-day"><div id="sheet" class="fit">${gridTable(dates,[0,1,2,3,4,5],[d])}</div></div>`;
+  if (m==="class") return h + agenda(dates, d, {cls:S.cls});
+  const W = teacherWeek(dates, S.who);
+  return h + `<div class="stats m-stats">${statsLine(W.st, orig)}</div>` + agenda(dates, d, {who:S.who});
 }
 
 /* ---------- views ---------- */
@@ -525,25 +712,35 @@ function weekOptions(){
 }
 function timetableView(){
   const baseMode = S.editBase && S.view==="week";
+  const m = curMode(); const mobile = isMobile();
   let bar = `<div class="bar">`;
   if (S.view==="orig"){
     const cur = S.origIdx<0 ? S.bases.length-1 : S.origIdx;
     bar += `<select id="origVer">${S.bases.map((x,i)=>{ const nx = S.bases[i+1]; return `<option value="${i}" ${i===cur?"selected":""}>${esc(x.name)}（${md(x.from)}${nx?`–${md(addDays(nx.from,-3))}`:" 起"}）</option>`; }).join("")}</select>
       <select id="origMode"><option value="week" ${S.origMode==="week"?"selected":""}>全校</option><option value="class" ${S.origMode==="class"?"selected":""}>班級</option><option value="teacher" ${S.origMode==="teacher"?"selected":""}>個人</option></select>`;
-    if (S.origMode==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
-    if (S.origMode==="teacher") bar += `<select id="whoSel">${allTeachers().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
-    bar += `<span class="grow"></span><button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn" data-act="print">列印／存 PDF</button></div>`;
-    return bar + `<div class="scroll"><div id="sheet" class="${S.origMode==="week"?"":"fit"}">${sheetHTML()}</div></div>`;
-  }
-  if (!baseMode) bar += `<button class="btn" data-act="prev" aria-label="上一週">◀</button><select id="weekSel">${weekOptions()}</select><button class="btn" data-act="next" aria-label="下一週">▶</button><button class="btn" data-act="today">本週</button>`;
-  if (S.view==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
-  if (S.view==="teacher") bar += `<select id="whoSel">${allTeachers().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
-  bar += `<span class="grow"></span><button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn" data-act="print">列印／存 PDF</button></div>`;
+  } else if (!baseMode) bar += `<button class="btn" data-act="prev" aria-label="上一週">◀</button><select id="weekSel">${weekOptions()}</select><button class="btn" data-act="next" aria-label="下一週">▶</button><button class="btn" data-act="today">本週</button>`;
+  if (m==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
+  if (m==="teacher") bar += `<select id="whoSel">${allTeachers().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  bar += `<span class="grow"></span>`;
+  if (!mobile && m==="week") bar += `<label class="fitchk noprint"><input type="checkbox" id="fitToggle" ${S.fit?"checked":""}> 縮放至視窗寬度</label>`;
+  bar += `<button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn hide-m" data-act="print">列印／存 PDF</button></div>`;
   let pre = "";
   if (baseMode) pre += `<div class="banner">正在編輯「${esc(baseFor(null).name)}」（自 ${md(baseFor(null).from)} 起適用）：修改會套用到這段期間的每一週。完成後請到「設定」關閉。</div>`;
-  else if (S.admin && S.view!=="teacher") pre += `<div class="hint noprint" style="margin-bottom:8px">點格子編輯（可連續點多格，同一天的多格可合併成活動格）；點導師、晨間、大下課、活動格也能修改。紅框＝同一位老師同節排在兩班。</div>`;
-  return bar + pre + `<div class="scroll"><div id="sheet" class="${S.view==="week"?"":"fit"}">${sheetHTML()}</div></div>`;
+  else if (S.admin && !mobile && S.view!=="teacher" && S.view!=="orig") pre += `<div class="hint noprint" style="margin-bottom:8px">點格子編輯（可連續點多格，同一天的多格可合併成活動格）；點導師、晨間、大下課、活動格也能修改。紅框＝同一位老師同節排在兩班。</div>`;
+  if (m==="teacher" && S.view==="teacher") pre += changeSummary(weekDates(S.week), S.who);
+  if (mobile) return bar + pre + (baseMode ? `<div class="scroll"><div id="sheet">${sheetHTML()}</div></div>` : mobileBody());
+  const fitMode = m==="week" && S.fit;
+  return bar + pre + `<div class="scroll ${fitMode?"fitmode":"capped"}"><div id="sheet" class="${m==="week"?"":"fit"}">${sheetHTML()}</div></div>`;
 }
+/* 電腦版：週課表縮放到視窗寬度 */
+function applyFit(){
+  const sheet = document.querySelector(".scroll.fitmode #sheet"); if (!sheet) return;
+  sheet.style.zoom = 1;
+  const avail = sheet.parentElement.clientWidth - 2, natural = sheet.scrollWidth;
+  const z = Math.min(1, avail/natural);
+  sheet.style.zoom = z; sheet.dataset.z = z;
+}
+
 function monthsInTerm(){
   const out = []; const s = termStart(); const e = addDays(s, S.settings.weeks*7-1);
   const d = pdate(s); d.setDate(1);
@@ -895,6 +1092,7 @@ function render(){
   const sx = document.querySelector(".scroll")?.scrollLeft || 0;
   $("#main").innerHTML = S.view==="check" ? checkView() : S.view==="settings" ? settingsView() : timetableView();
   const sc = document.querySelector(".scroll"); if (sc) sc.scrollLeft = sx;
+  applyFit();
   renderEditor();
   writeHash();
 }
@@ -916,16 +1114,18 @@ document.addEventListener("click", async e => {
       if (el){ const key = el.getAttribute(attr); S.sel = []; S.other = (S.other?.kind===kind && S.other.key===key) ? null : {kind,key}; render(); return; }
     }
   }
+  const dbtn = e.target.closest("[data-day]");
+  if (dbtn){ S.day = +dbtn.dataset.day; render(); return; }
   const btn = e.target.closest("[data-act]"); if (!btn) return;
   const act = btn.dataset.act;
   try{
     switch(act){
       case "prev": S.week--; render(); break;
       case "next": S.week++; render(); break;
-      case "today": S.week = currentWeek(); render(); break;
+      case "today": S.week = currentWeek(); S.day = todayIdx(); render(); break;
       case "png": await exportPNG(); break;
       case "doc": await exportDocx(); break;
-      case "print": window.print(); break;
+      case "print": S.printing = true; render(); setTimeout(() => window.print(), 50); break;
       case "csv": exportCSV(); break;
       case "backup": exportBackup(); break;
       case "apply": await applyEdit(); break;
@@ -970,6 +1170,7 @@ document.addEventListener("change", e => {
   else if (e.target.id==="clsSel"){ S.cls = +e.target.value; render(); }
   else if (e.target.id==="whoSel"){ S.who = e.target.value; try{ localStorage.setItem("tt-who", S.who); }catch(_){} render(); }
   else if (e.target.id==="monthSel"){ S.month = e.target.value; render(); }
+  else if (e.target.id==="fitToggle"){ S.fit = e.target.checked; try{ localStorage.setItem("tt-fit", S.fit?"1":"0"); }catch(_){} render(); }
   else if (e.target.id==="origVer"){ S.origIdx = +e.target.value; render(); }
   else if (e.target.id==="origMode"){ S.origMode = e.target.value; render(); }
   else if (e.target.dataset.ctype){ const k = e.target.dataset.ctype; e.target.checked ? S.ctypes.add(k) : S.ctypes.delete(k); render(); }
@@ -986,12 +1187,28 @@ $("#loginForm").addEventListener("submit", async e => {
   catch(err){ $("#loginErr").textContent = "密碼錯誤或尚未設定後台帳號"; }
 });
 window.addEventListener("hashchange", () => { readHash(); render(); });
+window.addEventListener("afterprint", () => { if (S.printing){ S.printing = false; render(); } });
+mq.addEventListener("change", () => render());
+let rsT; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(applyFit, 120); });
+/* 縮小顯示時，滑鼠移到格子上放大顯示 */
+const mag = document.createElement("div"); mag.id = "mag"; mag.hidden = true; document.body.appendChild(mag);
+document.addEventListener("mousemove", e => {
+  const sheet = document.querySelector(".scroll.fitmode #sheet");
+  const td = e.target.closest?.(".scroll.fitmode #sheet td");
+  if (!sheet || !td || +(sheet.dataset.z||1) > 0.85 || !td.innerText.trim()){ mag.hidden = true; return; }
+  mag.innerHTML = td.innerHTML; mag.className = td.className.replace(/\b(edit|sel|conf|dstart)\b/g,""); mag.hidden = false;
+  const x = Math.min(e.clientX + 16, innerWidth - mag.offsetWidth - 8), y = Math.min(e.clientY + 16, innerHeight - mag.offsetHeight - 8);
+  mag.style.left = x + "px"; mag.style.top = y + "px";
+});
+function todayIdx(){ const wd = (new Date().getDay()+6)%7; return wd<=4 ? wd : 0; }
 
 /* ---------- start ---------- */
 (async () => {
-  try{ S.who = localStorage.getItem("tt-who") || ""; }catch(_){}
+  try{ S.who = localStorage.getItem("tt-who") || ""; S.fit = localStorage.getItem("tt-fit")!=="0"; }catch(_){}
+  S.day = todayIdx();
   try{ await initData(); } catch(err){ console.error(err); alert("無法連線到資料庫，請稍後再試。"); }
   S.week = currentWeek();
+  if (!location.hash && S.who) S.view = "teacher";   // 記住「我是誰」：直接開自己的課表
   readHash();
   render();
 })();
