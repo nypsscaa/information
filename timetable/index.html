@@ -553,14 +553,15 @@ function teacherWeek(dates, who){
             const e = {kind:"out", d, p, c, x}; lost.push(e); add(d,ri,e);
           }
         } else if (it.kind==="block"){
-          const b = baseCell(date,d,c,p);
-          if (b?.t===who) add(d,ri,{kind:"blk", d, p, c, x:b, text:(it.text||"停課").replace(/\n/g," ")});
+          const b = baseCell(date,d,c,p); const x = cellAt(date,d,c,p);
+          if (x?.changed && x.type==="swap" && x.ot===who && x.t!==who){ const e = {kind:"out", d, p, c, x}; lost.push(e); add(d,ri,e); }   // 這節課調走了，原時段被活動格占用
+          else if (b?.t===who) add(d,ri,{kind:"blk", d, p, c, x:b, text:(it.text||"停課").replace(/\n/g," ")});
         }
       }
     }
   }
   // 調課配對：同一週、同一班，一節調出 ↔ 一節調進
-  const gs = gained.filter(e => e.x.type==="swap"), ls = lost.filter(e => e.x.type==="swap");
+  const gs = gained.filter(e => e.x.type==="swap" && !e.x.src), ls = lost.filter(e => e.x.type==="swap" && !e.x.src);
   ls.forEach(l => { const g = gs.find(g => !g.pair && g.c===l.c) || gs.find(g => !g.pair); if (g){ g.pair = l; l.pair = g; } });
   const all = Object.values(at).flat();
   const st = {
@@ -572,15 +573,21 @@ function teacherWeek(dates, who){
   return {models, at, gained, lost, st};
 }
 const slotName = (dates,e) => `${dates ? md(dates[e.d]) : `週${DAYN[e.d]}`} 第${PNUM[e.p]}節`;
+/* 調課的另一端：記錄裡有 src（日期|節次）就用它，否則用同週配對結果 */
+function otherSlot(e, dates){
+  if (e.x.src){ const [dt,p] = e.x.src.split("|"); return `${md(dt)}(${DAYN[weekdayOf(dt)]}) 第${PNUM[+p]}節`; }
+  return e.pair ? slotName(dates, e.pair) : "";
+}
 function entryHTML(e, dates){
   const cl = `<span class="cl">${CN[e.c]}年級</span>`;
   if (e.kind==="have") return `<div class="it">${cl} <span class="s">${esc(e.x.s)}</span></div>`;
   if (e.kind==="in"){
-    const note = e.x.type==="swap" ? `↩ ${e.pair ? `由 ${slotName(dates,e.pair)} 調來` : "本節為調課"}` : (e.x.ot ? `代 ${esc(e.x.ot)}` : "");
+    const os = otherSlot(e,dates);
+    const note = e.x.type==="swap" ? `↩ ${os ? `由 ${os} 調來` : "本節為調課"}` : (e.x.ot ? `代 ${esc(e.x.ot)}` : "");
     return `<div class="it">${cl} <span class="s">${esc(e.x.s)}</span>${note?`<div class="note">${note}</div>`:""}</div>`;
   }
   if (e.kind==="out"){
-    if (e.x.type==="swap") return `<div class="moved">↪ ${CN[e.c]}年級 ${esc(e.x.os)} ${e.pair ? `調至 ${slotName(dates,e.pair)}` : "本節調課"}</div>`;
+    if (e.x.type==="swap"){ const os = otherSlot(e,dates); return `<div class="moved">↪ ${CN[e.c]}年級 ${esc(e.x.os)} ${os ? `調至 ${os}` : "本節調課"}</div>`; }
     return `<div class="lost">${CN[e.c]}年級 ${esc(e.x.os)} → ${esc(e.x.t||"（無）")}</div>`;
   }
   return `<div class="lost">${CN[e.c]}年級 ${esc(e.x.s)} → ${esc(e.text)}</div>`;
@@ -634,8 +641,8 @@ function changeSummary(dates, who){
     const when = `${md(dates[e.d])}(${DAYN[e.d]}) 第${PNUM[e.p]}節`;
     const tag = `<span class="chip" style="background:${TYPES[e.x.type]?.color||"#fff"}">${e.x.type==="swap"?"調課":e.x.type==="sub"?"代課":e.x.type==="event"?"行事":"異動"}</span>`;
     let txt;
-    if (e.kind==="in") txt = e.x.type==="swap" ? `${CN[e.c]}年級 ${esc(e.x.s)}${e.pair?`（由 ${slotName(dates,e.pair)} 調來）`:""}` : `代 ${esc(e.x.ot||"")} 上 ${CN[e.c]}年級 ${esc(e.x.s)}`;
-    else txt = e.x.type==="swap" ? `${CN[e.c]}年級 ${esc(e.x.os)} ${e.pair?`調至 ${slotName(dates,e.pair)}`:"調課"}` : `${CN[e.c]}年級 ${esc(e.x.os)} 由 ${esc(e.x.t||"（無）")} 代`;
+    if (e.kind==="in") txt = e.x.type==="swap" ? `${CN[e.c]}年級 ${esc(e.x.s)}${otherSlot(e,dates)?`（由 ${otherSlot(e,dates)} 調來）`:""}` : `代 ${esc(e.x.ot||"")} 上 ${CN[e.c]}年級 ${esc(e.x.s)}`;
+    else txt = e.x.type==="swap" ? `${CN[e.c]}年級 ${esc(e.x.os)} ${otherSlot(e,dates)?`調至 ${otherSlot(e,dates)}`:"調課"}` : `${CN[e.c]}年級 ${esc(e.x.os)} 由 ${esc(e.x.t||"（無）")} 代`;
     return `<li><span class="when">${when}</span>${tag}${txt}</li>`;
   };
   return `<div class="summary noprint"><b>${esc(who)}老師本週有 ${list.length} 節異動</b><ul>${list.map(li).join("")}</ul></div>`;
@@ -744,6 +751,7 @@ function timetableView(){
   } else if (!baseMode) bar += `<button class="btn" data-act="prev" aria-label="上一週">◀</button><select id="weekSel">${weekOptions()}</select><button class="btn" data-act="next" aria-label="下一週">▶</button><button class="btn" data-act="today">本週</button>`;
   if (m==="class") bar += `<select id="clsSel">${CN.map((n,i)=>`<option value="${i}" ${i===S.cls?"selected":""}>${n}年級</option>`).join("")}</select>`;
   if (m==="teacher") bar += `<select id="whoSel">${whoList().map(t=>`<option ${t===S.who?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  if (S.admin && !mobile && S.view==="week" && !baseMode) bar += `<button class="btn" data-act="halfopen">⇄ 半天對調</button>`;
   bar += `<span class="grow"></span>`;
   if (!mobile && m==="week") bar += `<label class="fitchk noprint"><input type="checkbox" id="fitToggle" ${S.fit?"checked":""}> 縮放至視窗寬度</label>`;
   bar += `<button class="btn" data-act="png">下載圖片</button><button class="btn" data-act="doc">下載 Word</button><button class="btn hide-m" data-act="print">列印／存 PDF</button></div>`;
@@ -894,6 +902,7 @@ function renderEditor(){
   ed.hidden = false;
   const tlist = `<datalist id="tlist">${[...new Set([...teachersOf(weekDates(S.week)), ...teachersOf(null)])].map(t => `<option value="${esc(t)}">`).join("")}</datalist>`;
   const o = S.other;
+  if (o?.kind==="half"){ ed.innerHTML = halfSwapPanel(); return; }
   if (o?.kind==="text"){
     const a = o.key.split("|"); const isBase = a[0]==="B";
     const d = isBase ? +a[1] : weekdayOf(a[0]); const field = isBase ? a[2] : a[1];
@@ -947,6 +956,83 @@ function renderEditor(){
   }
   ed.innerHTML = h;
 }
+/* ---------- 半天對調 ---------- */
+const HALF = {am:{name:"上午", periods:[1,2,3,4], r0:1, r1:5}, pm:{name:"下午", periods:[5,6,7], r0:7, r1:9}};
+function halfForm(){
+  const o = S.other;
+  o.a = $("#hsA")?.value ?? o.a; o.b = $("#hsB")?.value ?? o.b;
+  o.half = document.querySelector('input[name=hsHalf]:checked')?.value || o.half;
+  o.cls = [...document.querySelectorAll('.hsCls:checked')].map(x => +x.value);
+  o.note = $("#hsNote")?.value.trim() ?? o.note;
+  return o;
+}
+function halfCheck(o){
+  if (!o.a || !o.b) return "請選擇兩個日期。";
+  if (o.a===o.b) return "兩個日期不能相同。";
+  for (const d of [o.a,o.b]){
+    if (weekdayOf(d)>4) return `${md(d)} 是週末。`;
+    if (holidayName(d)) return `${md(d)} 是${holidayName(d)}，停課。`;
+  }
+  if (!o.cls.length) return "請至少勾選一個年級。";
+  return "";
+}
+function halfSwapPanel(){
+  const o = S.other;
+  const dl = d => d ? `${md(d)}(${DAYN[weekdayOf(d)]||"?"})` : "＿＿";
+  return `<h3>⇄ 半天對調</h3>
+    <p class="hint" style="margin:0 0 6px">把兩天同一個時段（上午或下午）的課整段互換，標為藍色調課。</p>
+    <label>第一天</label><input type="date" id="hsA" value="${esc(o.a)}">
+    <label>第二天</label><input type="date" id="hsB" value="${esc(o.b)}">
+    <label>時段</label><div class="types">${Object.entries(HALF).map(([k,h]) => `<label><input type="radio" name="hsHalf" value="${k}" ${o.half===k?"checked":""}> ${h.name}（第${h.periods.map(p=>PNUM[p]).join("、")}節）</label>`).join("")}</div>
+    <label>年級</label><div style="display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px">${CN.map((n,i) => `<label style="display:flex;gap:3px;align-items:center;margin:0;color:var(--ink)"><input type="checkbox" class="hsCls" value="${i}" ${o.cls.includes(i)?"checked":""}>${n}年級</label>`).join("")}</div>
+    <label>備註（可空白）</label><input type="text" id="hsNote" value="${esc(o.note)}" placeholder="例如：配合校外教學">
+    <div class="sel-list" style="margin-top:8px">${dl(o.a)} ${HALF[o.half].name} ⇄ ${dl(o.b)} ${HALF[o.half].name}</div>
+    <div class="row"><button class="btn pri" data-act="halfdo">對調</button><button class="btn" data-act="halfundo" title="把這兩天這個時段恢復成原課表">還原這兩個半天</button><button class="btn" data-act="clearsel">關閉</button></div>
+    <div class="warn" id="hsMsg"></div>`;
+}
+async function halfSwap(undo){
+  const o = halfForm(); const err = halfCheck(o);
+  if (err){ $("#hsMsg").textContent = err; return; }
+  const H = HALF[o.half]; const A = o.a, B = o.b;
+  if (undo && !confirm(`確定把 ${md(A)} 與 ${md(B)} 的${H.name}（${o.cls.map(c=>CN[c]).join("、")}年級）恢復成原課表嗎？\n這兩個時段裡的其他調代課和活動格也會一起清除。`)) return;
+  if (!undo && !confirm(`確定把 ${md(A)} 與 ${md(B)} 的${H.name}對調嗎？（${o.cls.map(c=>CN[c]).join("、")}年級）`)) return;
+  const inHalf = b => b.r0>=H.r0 && b.r1<=H.r1;
+  const strip = l => l.map(b => { const {d, ...r} = b; return r; });
+  const patch = {[A]:{cells:{}}, [B]:{cells:{}}};
+  if (undo){
+    for (const D of [A,B]) for (const c of o.cls) for (const p of H.periods) patch[D].cells[`c${c}p${p}`] = DEL;
+    // 活動格：這個時段回到原課表（基本課表）的設定
+    for (const D of [A,B]){
+      const day = S.days[D];
+      if (Array.isArray(day?.blocks)){
+        const base = (baseFor(D).blocks||[]).filter(b => b.d===weekdayOf(D));
+        const keep = strip(day.blocks).filter(b => !inHalf(b));
+        const list = keep.concat(strip(base.filter(inHalf)));
+        patch[D].blocks = list;
+      }
+    }
+  } else {
+    const dA = weekdayOf(A), dB = weekdayOf(B);
+    const note = o.note || `${H.name}與 ${md(A)}/${md(B)} 對調`;
+    for (const c of o.cls) for (const p of H.periods){
+      const ca = cellAt(A,dA,c,p) || {s:"",t:""}, cb = cellAt(B,dB,c,p) || {s:"",t:""};
+      const ba = baseCell(A,dA,c,p), bb = baseCell(B,dB,c,p);
+      patch[A].cells[`c${c}p${p}`] = {type:"swap", s:cb.s||"", t:cb.t||"", note, os:ba?.s||"", ot:ba?.t||"", src:`${B}|${p}`};
+      patch[B].cells[`c${c}p${p}`] = {type:"swap", s:ca.s||"", t:ca.t||"", note, os:bb?.s||"", ot:bb?.t||"", src:`${A}|${p}`};
+    }
+    // 活動格（例如週三下午進修）跟著時段一起移動；只勾部分年級時，只移動完全在這些年級內的活動格
+    const lA = strip(dayBlocks(A,dA).list), lB = strip(dayBlocks(B,dB).list);
+    const movable = b => inHalf(b) && o.cls.includes(b.c0) && o.cls.includes(b.c1) && [...Array(b.c1-b.c0+1)].every((_,i) => o.cls.includes(b.c0+i));
+    const mA = lA.filter(movable), mB = lB.filter(movable);
+    if (mA.length || mB.length){
+      patch[A].blocks = lA.filter(b => !movable(b)).concat(mB);
+      patch[B].blocks = lB.filter(b => !movable(b)).concat(mA);
+    }
+  }
+  clearSel();
+  await writeDay(A, patch[A]); await writeDay(B, patch[B]);
+  render();
+}
 function clearSel(){ S.sel = []; S.other = null; }
 async function applyEdit(){
   const keys = S.sel; const multi = keys.length>1;
@@ -975,8 +1061,8 @@ async function swapEdit(){
   const ca = cellAt(a.date,a.d,a.c,a.p)||{s:"",t:""}, cb = cellAt(b.date,b.d,b.c,b.p)||{s:"",t:""};
   const ba = baseCell(a.date,a.d,a.c,a.p), bb = baseCell(b.date,b.d,b.c,b.p);
   const note = ($("#edN")?.value||"").trim();
-  const recA = {type:"swap", s:cb.s||"", t:cb.t||"", note, os:ba?.s||"", ot:ba?.t||""};
-  const recB = {type:"swap", s:ca.s||"", t:ca.t||"", note, os:bb?.s||"", ot:bb?.t||""};
+  const recA = {type:"swap", s:cb.s||"", t:cb.t||"", note, os:ba?.s||"", ot:ba?.t||"", src:`${b.date}|${b.p}`};
+  const recB = {type:"swap", s:ca.s||"", t:ca.t||"", note, os:bb?.s||"", ot:bb?.t||"", src:`${a.date}|${a.p}`};
   clearSel();
   if (a.date===b.date) await writeDay(a.date, {cells:{[`c${a.c}p${a.p}`]:recA, [`c${b.c}p${b.p}`]:recB}});
   else { await writeDay(a.date,{cells:{[`c${a.c}p${a.p}`]:recA}}); await writeDay(b.date,{cells:{[`c${b.c}p${b.p}`]:recB}}); }
@@ -1189,6 +1275,9 @@ document.addEventListener("click", async e => {
       case "swap": await swapEdit(); break;
       case "reset": await resetEdit(); break;
       case "clearsel": clearSel(); render(); break;
+      case "halfopen": S.sel = []; S.other = {kind:"half", a:"", b:"", half:"am", cls:[0,1,2,3,4,5], note:""}; render(); break;
+      case "halfdo": await halfSwap(false); break;
+      case "halfundo": await halfSwap(true); break;
       case "applytext": await applyText(false); break;
       case "resettext": await applyText(true); break;
       case "applytut": await applyTut(false); break;
@@ -1227,6 +1316,7 @@ document.addEventListener("click", async e => {
   } catch(err){ console.error(err); alert("儲存失敗：" + (err.message||err)); }
 });
 document.addEventListener("change", e => {
+  if (S.other?.kind==="half" && e.target.closest("#editor")){ halfForm(); renderEditor(); return; }
   if (e.target.id==="weekSel"){ S.week = +e.target.value; render(); }
   else if (e.target.id==="clsSel"){ S.cls = +e.target.value; render(); }
   else if (e.target.id==="whoSel"){ S.who = e.target.value; try{ localStorage.setItem("tt-who", S.who); }catch(_){} render(); }
